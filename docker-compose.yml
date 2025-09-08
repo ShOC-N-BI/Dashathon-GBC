@@ -1,0 +1,89 @@
+#un-needed
+# version: '3.9'
+#network would go here vvv but its also un-nneeded
+# networks:
+#   CSEC:
+#     driver: bridge
+services:
+# -------------------------------------------------------------
+  postgresDB:
+    image: postgres:latest
+    container_name: postgresDB
+    environment:
+      POSTGRES_USER: kyle
+      POSTGRES_PASSWORD: '123'
+      POSTGRES_DB: postgresDB
+
+    ports:
+    - '5432:5432'
+#    volumes:
+#      - db_data:/var/lib/postgresql/data
+    # networks:
+    # - CSEC
+# -------------------------------------------------------------
+# AdminDB?? 
+# dpage/pgadmin4 admin4
+  adminDB:
+    image: dpage/pgadmin4:latest
+    container_name: adminDB_container
+    environment:
+      # PGADMIN_DEFAULT_EMAIL: Postgreser
+      PGADMIN_DEFAULT_EMAIL: Kyle@kyle.com
+      PGADMIN_DEFAULT_PASSWORD: '123'
+      POSTGRES_DB: postgresDB
+    depends_on:
+     - postgresDB
+    # docker run --name pgadmin-container -p 5050:80 -e PGADMIN_DEFAULT_EMAIL=user@domain.com -e PGADMIN_DEFAULT_EMAIL=catsarecool -d dpage/pgadmin4
+    ports:
+    - '5050:80'
+    # networks:
+    #   - CSEC
+# -------------------------------------------------------------
+# dash app
+  dash_app:
+    build: ./dash_app
+    container_name: dash_app_container
+    # depends_on:
+    # - database
+    ports:
+      - "8050:8050"
+    volumes:
+    - ./dash_app:/app
+    # restart: always
+    # networks:
+    #   - CSEC
+    depends_on:
+      - postgresDB
+# -------------------------------------------------------------
+# irc app
+  irc_app:
+    build: ./irc_app
+    container_name: irc_app_container
+    # depends_on:
+    # - database
+    ports:
+      - "8080:8080"
+    volumes:
+    - ./irc_app:/app
+    # restart: always
+    # networks:
+    #   - CSEC
+    depends_on:
+      - postgresDB
+# -------------------------------------------------------------
+# dbc app
+dbc_app:
+build: ./dbc_app
+container_name: dbc_app_container
+ports:
+  - "8070:8070"
+volumes:
+- ./dash_app:/app
+ # restart: always
+    # networks:
+    #   - CSEC
+depends_on:
+  -postgresDB
+
+volumes:
+  db_data:
