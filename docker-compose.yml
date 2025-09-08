@@ -72,18 +72,18 @@ services:
       - postgresDB
 # -------------------------------------------------------------
 # dbc app
-dbc_app:
-build: ./dbc_app
-container_name: dbc_app_container
-ports:
-  - "8070:8070"
-volumes:
-- ./dash_app:/app
- # restart: always
+  dbc_app:
+    build: ./dbc_app
+    container_name: dbc_app_container
+    ports:
+    - "8070:8070"
+    volumes:
+    - ./dash_app:/app
+    # restart: always
     # networks:
     #   - CSEC
-depends_on:
-  -postgresDB
+    depends_on:
+      -postgresDB
 
 volumes:
   db_data:
