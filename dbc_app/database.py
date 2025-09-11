@@ -91,7 +91,7 @@ try:
     df_red_maritine_del_s2s = pd.read_sql(query, conn)
 
     #Show preview of data
-    print(df_red_maritine_del_s2s.head())
+    # print(df_red_maritine_del_s2s.head())
 
 except Exception as e:
     print("Error:", e)
