@@ -3,7 +3,7 @@ import psycopg2
 import pandas as pd
 
 # Database connection settings 
-DB_HOST = "10.5.185.53"       
+DB_HOST = "10.5.185.21"       
 DB_PORT = "5432"            
 DB_NAME = "shooca_db"   
 DB_USER = "shooca"   
@@ -21,16 +21,20 @@ red_ground_act_s2s = "red_ground_actionables_surf_to_surf"
 red_ground_del_a2s = "red_ground_deliverables_air_to_surf"
 red_ground_del_drone = "red_ground_deliverables_drone"
 red_ground_del_s2s = "red_ground_deliverables_surf_to_surf"
-red_maritine_act_a2s = "red_maritine_actionables_air_to_surf"
-red_maritine_act_drone = "red_maritine_actionables_drone"
-red_maritine_act_s2s = "red_maritine_actionables_surf_to_surf"
-red_maritine_del_a2s = "red_maritine_deliverables_air_to_surf"
-red_maritine_del_drone = "red_maritine_deliverables_drone"
-red_maritine_del_s2s = "red_maritine_deliverables_surf_to_surf"
+red_maritime_act_a2s = "red_maritime_actionables_air_to_surf"
+red_maritime_act_drone = "red_maritime_actionables_drone"
+red_maritime_act_s2s = "red_maritime_actionables_surf_to_surf"
+red_maritime_del_a2s = "red_maritime_deliverables_air_to_surf"
+red_maritime_del_drone = "red_maritime_deliverables_drone"
+red_maritime_del_s2s = "red_maritime_deliverables_surf_to_surf"
 bc3_with_all_vw = "bc3_with_all_vw"
-try:
+
+    # Use pandas to fetch the data
+def query_mef(): 
+    df_mef_data = pd.DataFrame()
+    try:
     # Connect to PostgreSQL
-    conn = psycopg2.connect(
+        conn = psycopg2.connect(
         host=DB_HOST,
         port=DB_PORT,
         dbname=DB_NAME,
@@ -90,15 +94,18 @@ try:
     query = f"SELECT * FROM {red_maritine_del_s2s};"
     df_red_maritine_del_s2s = pd.read_sql(query, conn)
 
-    query = f"SELECT * FROM {bc3_with_all_vw};"
-    df_bc3_with_all_vw = pd.read_sql(query, conn)
-
     #Show preview of data
     # print(df_red_maritine_del_s2s.head())
 
 except Exception as e:
     print("Error:", e)
 
-finally:
-    if 'conn' in locals():
-        conn.close()
+    finally:
+        if 'conn' in locals():
+            conn.close()       
+    return df_red_maritime_del_s2s
+
+    #Show preview of data
+    # print(df_red_maritime_del_s2s.head())
+
+
