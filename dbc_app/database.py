@@ -41,15 +41,20 @@ def query_mef():
         user=DB_USER,
         password=DB_PASS
     )
-        query = f"SELECT * FROM {mef_data};"
+        query = f"SELECT * FROM {mef_data} order by timestamp desc limit 1;"
         df_mef_data = pd.read_sql(query, conn)
+
     except Exception as e:
         print("Error:", e)
 
     finally:
         if 'conn' in locals():
             conn.close()   
+
+    
     return df_mef_data
+ 
+    
 
 def query_red_air_act_a2a():
     df_red_air_act_a2a = pd.DataFrame()
