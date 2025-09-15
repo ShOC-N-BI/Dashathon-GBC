@@ -14,14 +14,16 @@ Purpose:
 """
 
 # === Imports ===
-import database 
-#import armament
-#import hostiles
-#import fuel
-#import time_to_target  
+import database
+
+# import armament
+# import hostiles
+# import fuel
+import time_to_target
 import json
 
 # === Main Workflow ===
+
 
 def get_friendly_aircraft():
     return 0
@@ -35,22 +37,23 @@ def evaluate_aircraft(friendly, target):
     results = {}
     print(target)
     print(friendly)
-    return 
     # 1. Weapon Viability
-    results_amament = armament.check_armaments(friendly, target)
+    # results_amament = armament.check_armaments(friendly, target)
 
-    # 2. Hostile Threat Evaluation
-    results_hostiles = hostiles.evaluate_threat(friendly, target)
+    # # 2. Hostile Threat Evaluation
+    # results_hostiles = hostiles.evaluate_threat(friendly, target)
 
-    # 3. Fuel Analysis
-    results_fuel = fuel.analyze_fuel(friendly, target)
+    # # 3. Fuel Analysis
+    # results_fuel = fuel.analyze_fuel(friendly, target)
 
     # 4. Time Analysis
     results_time = time_to_target.compute_time(friendly, target)
+    print(results_time)
+    return
 
-    # calculate results 
+    # calculate results
     #
-    # 
+    #
     #
     return results
 
@@ -64,15 +67,12 @@ def main():
     """
     # Step 1: Get Data
     current_MEF = database.query_mef()
-    friendly_aircraft_list = current_MEF['actions'].iloc[0]  # Expect list of 3 aircraft
-    #friendly_aircraft_list = json.loads(friendly_aircraft_list)
-    #print(type(friendly_aircraft_list))
-    #print(friendly_aircraft_list[0].keys())
-    target_aircraft = current_MEF['entity'].iloc[0]          # Expect single hostile aircraft
+    friendly_aircraft_list = current_MEF["actions"].iloc[0]  # Expect list of 3 aircraft
+    # friendly_aircraft_list = json.loads(friendly_aircraft_list)
+    # print(type(friendly_aircraft_list))
+    # print(friendly_aircraft_list[0].keys())
+    target_aircraft = current_MEF["entity"].iloc[0]  # Expect single hostile aircraft
 
-     
-
-    
     # Step 2: Run evaluations
     all_results = {}
     for idx, friendly in enumerate(friendly_aircraft_list, start=1):

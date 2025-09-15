@@ -11,8 +11,8 @@ import pandas as pd
 import psycopg2
 from psycopg2 import sql
 
-import database           # your DB creds + table names live here
-import parsing as P       # we import helpers from parsing.py
+import database  # your DB creds + table names live here
+import parsing as P  # we import helpers from parsing.py
 
 DB = dict(
     host=database.DB_HOST,
@@ -31,6 +31,7 @@ normalize_name = getattr(P, "normalize_name", None)
 tokenize_weapons = getattr(P, "tokenize_weapons", None)
 
 if normalize_name is None:
+
     def normalize_name(s: str) -> str:
         if not isinstance(s, str):
             return ""
@@ -38,13 +39,16 @@ if normalize_name is None:
         s = re.sub(r"\s+", " ", s)
         return s.upper()
 
+
 if tokenize_weapons is None:
     _SPLIT = re.compile(r"[;,/]+")
     _PFX = re.compile(r"^\s*\d+\s*[xX]\s*")
+
     def tokenize_weapons(w: str | None) -> list[str]:
         if not isinstance(w, str) or not w.strip():
             return []
         return [_PFX.sub("", t).strip() for t in _SPLIT.split(w) if t.strip()]
+
 
 def ensure_weapon_list(df: pd.DataFrame) -> pd.DataFrame:
     """Ensure df has weapon_list and weapon_clean columns."""
@@ -53,6 +57,7 @@ def ensure_weapon_list(df: pd.DataFrame) -> pd.DataFrame:
     if "weapon_clean" not in df.columns:
         df["weapon_clean"] = df["weapon_list"].apply(lambda xs: ", ".join(xs))
     return df
+
 
 # --------------------------------------------------------------------------------------
 # Base-code extraction (GBU-53, GBU-38, AGM-114, AIM-120, etc.)
@@ -64,26 +69,30 @@ def ensure_weapon_list(df: pd.DataFrame) -> pd.DataFrame:
 #   "AGM-114N"   -> AGM-114
 #   "AIM-120C-7" -> AIM-120
 #   "GBU-53/B"   -> GBU-53
-_BASE_RE = re.compile(r'([A-Z]{2,4})[-\s]?(\d{2,3})')
+_BASE_RE = re.compile(r"([A-Z]{2,4})[-\s]?(\d{2,3})")
+
 
 def to_base_code(text: str | None) -> str | None:
     """Return the first base code like 'GBU-53' from a token; else None."""
     if not isinstance(text, str) or not text.strip():
         return None
-    s = normalize_name(text).replace('/', '-')    # treat slash as hyphen
+    s = normalize_name(text).replace("/", "-")  # treat slash as hyphen
     m = _BASE_RE.search(s)
     return f"{m.group(1)}-{m.group(2)}" if m else None
+
 
 def all_base_codes(text: str | None) -> set[str]:
     """Return all base codes present in a deliverable name string."""
     if not isinstance(text, str) or not text.strip():
         return set()
-    s = normalize_name(text).replace('/', '-')
+    s = normalize_name(text).replace("/", "-")
     return {f"{pfx}-{num}" for (pfx, num) in _BASE_RE.findall(s)}
+
 
 # --------------------------------------------------------------------------------------
 # Deliverables loading / indexing
 # --------------------------------------------------------------------------------------
+
 
 def load_deliverable_index(conn, table_name: str) -> dict:
     """
@@ -108,6 +117,7 @@ def load_deliverable_index(conn, table_name: str) -> dict:
 
     return {"base_index": base_index, "names_norm": names_norm}
 
+
 # --------------------------------------------------------------------------------------
 # Deliverables table selection
 #   - Domain is ACTION → ENTITY (as provided by parsing.extract_actions_with_domain)
@@ -116,19 +126,18 @@ def load_deliverable_index(conn, table_name: str) -> dict:
 # --------------------------------------------------------------------------------------
 
 TABLE_FOR: dict[tuple[str, str], str] = {
-    ("air",      "surf_to_air"):  database.red_air_del_s2a,
-    ("air",      "air_to_air"):   database.red_air_del_a2a,
-
-    ("ground",   "air_to_surf"):  database.red_ground_del_a2s,
-    ("ground",   "surf_to_surf"): database.red_ground_del_s2s,
-
+    ("air", "surf_to_air"): database.red_air_del_s2a,
+    ("air", "air_to_air"): database.red_air_del_a2a,
+    ("ground", "air_to_surf"): database.red_ground_del_a2s,
+    ("ground", "surf_to_surf"): database.red_ground_del_s2s,
     ("maritime", "surf_to_surf"): database.red_maritine_del_s2s,
-    ("maritime", "air_to_surf"):  database.red_maritine_del_a2s,
+    ("maritime", "air_to_surf"): database.red_maritine_del_a2s,
 }
 
 # --------------------------------------------------------------------------------------
 # Matching
 # --------------------------------------------------------------------------------------
+
 
 def find_weapon_matches(conn, df_actions: pd.DataFrame) -> pd.DataFrame:
     df = ensure_weapon_list(df_actions.copy())
@@ -182,7 +191,9 @@ def find_weapon_matches(conn, df_actions: pd.DataFrame) -> pd.DataFrame:
 
         # de-dup deliverables
         seen = set()
-        deliverable_hits = [d for d in deliverable_hits if not (d in seen or seen.add(d))]
+        deliverable_hits = [
+            d for d in deliverable_hits if not (d in seen or seen.add(d))
+        ]
 
         matched_table.append(tbl)
         matched_weapons.append(token_hits)
@@ -196,13 +207,21 @@ def find_weapon_matches(conn, df_actions: pd.DataFrame) -> pd.DataFrame:
     df["has_match"] = has_match
 
     # (optional sanity checks)
-    assert len(matched_table) == len(df) == len(matched_weapons) == len(matched_deliverables) == len(has_match)
+    assert (
+        len(matched_table)
+        == len(df)
+        == len(matched_weapons)
+        == len(matched_deliverables)
+        == len(has_match)
+    )
 
     return df
+
 
 # --------------------------------------------------------------------------------------
 # Orchestrator
 # --------------------------------------------------------------------------------------
+
 
 def run() -> pd.DataFrame:
     """
@@ -218,18 +237,30 @@ def run() -> pd.DataFrame:
         actions = P.extract_actions_with_domain(conn, database.mef_data)
 
         # Keep only rows with resolvable family+domain
-        actions = actions[actions["entity_family"].notna() & actions["domain"].notna()].copy()
+        actions = actions[
+            actions["entity_family"].notna() & actions["domain"].notna()
+        ].copy()
 
         checked = find_weapon_matches(conn, actions)
     return checked
 
+
 if __name__ == "__main__":
     out = run()
     cols = [
-        "entity", "timestamp",
-        "trackcategory_entity", "trackcategory", "action_kind",
-        "entity_family", "domain", "domain_display",
-        "weapon", "weapon_clean",
-        "matched_table", "matched_weapons", "matched_deliverables", "has_match",
+        "entity",
+        "timestamp",
+        "trackcategory_entity",
+        "trackcategory",
+        "action_kind",
+        "entity_family",
+        "domain",
+        "domain_display",
+        "weapon",
+        "weapon_clean",
+        "matched_table",
+        "matched_weapons",
+        "matched_deliverables",
+        "has_match",
     ]
     print(out[[c for c in cols if c in out.columns]].head(25).to_string(index=False))
