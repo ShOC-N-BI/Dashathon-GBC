@@ -45,6 +45,11 @@ class Aircraft:
         hours_remaining = self.fuel_remaining / self.consumption_rate
         return hours_remaining * self.groundspeed
 
+    def max_range(self) -> float:
+        """Calculate max range with full fuel."""
+        hours = self.max_fuel_capacity / self.consumption_rate
+        return hours * self.groundspeed
+
 class Tanker:
     def __init__(self, tanker_id: str, location: Tuple[float, float], tanker_type: str):
         self.tanker_id = tanker_id
@@ -56,9 +61,10 @@ class Target:
         self.target_id = target_id
         self.location = location
 
+
 # ----------------------------- Constants -------------------------------------
 
-AIRCRAFT_FUEL_DATA = {
+AIRCRAFT_FUEL_DATA = { # Most of these numbers are wrong, I need a better list, or a database that has the better numbers
     "FA18F": {"consumption_rate": 6500, "max_fuel_capacity": 14500},
     "FA18E": {"consumption_rate": 6500, "max_fuel_capacity": 14500},
     "F-A-18E-F": {"consumption_rate": 6500, "max_fuel_capacity": 14500},
@@ -124,38 +130,21 @@ REFUEL_SPEEDS = {
 def find_nearest_tanker(asset: Aircraft, tankers: List[Tanker]) -> Tanker:
     return min(tankers, key=lambda t: haversine(asset.location, t.location))
 
-def evaluate_mission(asset: Aircraft, target: Target, tankers: List[Tanker]) -> Dict:
+def evaluate_mission(asset: Aircraft, target: Target, tankers: List[Tanker]) -> int:
     distance_to_target = haversine(asset.location, target.location)
+    round_trip_distance = distance_to_target * 2
     range_remaining = asset.range_remaining()
+    max_range = asset.max_range()
 
-    refuel_required = range_remaining < distance_to_target
-    refuel_time = 0
-    tanker_assigned = None
-    status = "Green"
+    if range_remaining >= round_trip_distance:
+        return 3  # Green
+    elif range_remaining >= distance_to_target and max_range >= round_trip_distance:
+        return 3  # Green (can refuel after target)
+    elif max_range >= round_trip_distance:
+        return 2  # Yellow (must refuel before target)
+    else:
+        return 1  # Red (cannot complete round trip)
 
-    if refuel_required:
-        tanker = find_nearest_tanker(asset, tankers)
-        tanker_assigned = tanker.tanker_id
-        refuel_time = 10  # Fixed time for midair refuel
-
-        max_range_with_refuel = (asset.max_fuel_capacity / asset.consumption_rate) * asset.groundspeed
-        if range_remaining + max_range_with_refuel >= distance_to_target:
-            status = "Yellow"
-        else:
-            status = "Red"
-
-    return {
-        "bc3_jtn": asset.bc3_jtn,
-        "vcs": asset.vcs,
-        "target_id": target.target_id,
-        "status": status,
-        "distance_to_target": round(distance_to_target, 2),
-        "range_remaining": round(range_remaining, 2),
-        "refuel_required": refuel_required,
-        "refuel_time_minutes": refuel_time,
-        "tanker_assigned": tanker_assigned,
-        "notes": "Refuel required before reaching target" if refuel_required else "Asset can reach target without refueling"
-    }
 
 # ----------------------------- External Interface -----------------------------
 
@@ -167,7 +156,7 @@ def process_mission(asset_data: Dict, target_data: Dict, tankers: List[Tanker]) 
     asset = Aircraft(
         bc3_jtn=asset_data["bc3_jtn"],
         aircraft_type=asset_data["aircraft_type"],
-        fuel_capacity=asset_data.get("fuel_capacity", 0),  # optional, not used directly
+        fuel_capacity=asset_data.get("fuel_capacity", 0),  # optional
         fuel_remaining=asset_data["fuel_remaining"],
         location=tuple(asset_data["location"]),
         groundspeed=asset_data["groundspeed"],
