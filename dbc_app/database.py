@@ -27,9 +27,37 @@ red_maritime_act_s2s = "red_maritime_actionables_surf_to_surf"
 red_maritime_del_a2s = "red_maritime_deliverables_air_to_surf"
 red_maritime_del_drone = "red_maritime_deliverables_drone"
 red_maritime_del_s2s = "red_maritime_deliverables_surf_to_surf"
+friendly_asset = "bc3_with_all_vw"
 
 
     # Use pandas to fetch the data
+def query_friendly_asset(callsign: str) -> pd.DataFrame:
+    df_friendly_asset = pd.DataFrame()
+    print(callsign)
+    try:
+        # Connect to PostgreSQL
+        conn = psycopg2.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PASS
+        )
+
+        # Use parameterized query to prevent SQL injection
+        query = f"SELECT * FROM {friendly_asset} WHERE callsign = %s;"
+        df_friendly_asset = pd.read_sql(query, conn, params=(callsign,))
+        
+    except Exception as e:
+        print("Error:", e)
+
+    finally:
+        if 'conn' in locals():
+            conn.close()
+
+    return df_friendly_asset
+
+
 def query_mef(): 
     df_mef_data = pd.DataFrame()
     try:
