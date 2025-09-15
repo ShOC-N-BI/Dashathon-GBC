@@ -27,7 +27,7 @@ red_maritine_act_s2s = "red_maritine_actionables_surf_to_surf"
 red_maritine_del_a2s = "red_maritine_deliverables_air_to_surf"
 red_maritine_del_drone = "red_maritine_deliverables_drone"
 red_maritine_del_s2s = "red_maritine_deliverables_surf_to_surf"
-
+bc3_with_all_vw = "bc3_with_all_vw"
 try:
     # Connect to PostgreSQL
     conn = psycopg2.connect(
@@ -89,6 +89,9 @@ try:
     
     query = f"SELECT * FROM {red_maritine_del_s2s};"
     df_red_maritine_del_s2s = pd.read_sql(query, conn)
+
+    query = f"SELECT * FROM {bc3_with_all_vw};"
+    df_bc3_with_all_vw = pd.read_sql(query, conn)
 
     #Show preview of data
     # print(df_red_maritine_del_s2s.head())
