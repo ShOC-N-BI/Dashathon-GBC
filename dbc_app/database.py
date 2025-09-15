@@ -27,6 +27,7 @@ red_maritine_act_s2s = "red_maritine_actionables_surf_to_surf"
 red_maritine_del_a2s = "red_maritine_deliverables_air_to_surf"
 red_maritine_del_drone = "red_maritine_deliverables_drone"
 red_maritine_del_s2s = "red_maritine_deliverables_surf_to_surf"
+get_friendly_aircraft = "vc3_with_all_vw"
 
 try:
     # Connect to PostgreSQL
@@ -89,6 +90,9 @@ try:
     
     query = f"SELECT * FROM {red_maritine_del_s2s};"
     df_red_maritine_del_s2s = pd.read_sql(query, conn)
+
+    query = f"SELECT * FROM {get_friendly_aircraft};"
+    df_get_friendly_aircraft = pd.read_sql(query, conn)
 
     #Show preview of data
     # print(df_red_maritine_del_s2s.head())
