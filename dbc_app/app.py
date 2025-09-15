@@ -14,13 +14,18 @@ Purpose:
 """
 
 # === Imports ===
-from database import get_friendly_aircraft, get_target_aircraft
-import armament
-import hostiles
-import fuel
-import time_to_target  # renamed to avoid conflict with Python's built-in time module
+import database 
+#import armament
+#import hostiles
+#import fuel
+#import time_to_target  
+import json
 
 # === Main Workflow ===
+
+def get_friendly_aircraft():
+    return 0
+
 
 def evaluate_aircraft(friendly, target):
     """
@@ -28,23 +33,25 @@ def evaluate_aircraft(friendly, target):
     run through all evaluation modules and return results.
     """
     results = {}
-
+    print(target)
+    print(friendly)
+    return 
     # 1. Weapon Viability
-    # Check if this aircraft has the correct loadout / range / probability of kill
-    results["weapon"] = armament.check_armaments(friendly, target)
+    results_amament = armament.check_armaments(friendly, target)
 
     # 2. Hostile Threat Evaluation
-    # Determine threat level, defensive systems, engagement risk
-    results["hostile"] = hostiles.evaluate_threat(friendly, target)
+    results_hostiles = hostiles.evaluate_threat(friendly, target)
 
     # 3. Fuel Analysis
-    # Calculate if this aircraft can reach target, loiter, and return safely
-    results["fuel"] = fuel.analyze_fuel(friendly, target)
+    results_fuel = fuel.analyze_fuel(friendly, target)
 
     # 4. Time Analysis
-    # Check how long until intercept, engagement window, timing constraints
-    results["time"] = time_to_target.compute_time(friendly, target)
+    results_time = time_to_target.compute_time(friendly, target)
 
+    # calculate results 
+    #
+    # 
+    #
     return results
 
 
@@ -55,11 +62,17 @@ def main():
     - Iterate each friendly through evaluation pipeline.
     - Print or log final summary for all aircraft.
     """
-
     # Step 1: Get Data
-    friendly_aircraft_list = get_friendly_aircraft()  # Expect list of 3 aircraft
-    target_aircraft = get_target_aircraft()           # Expect single hostile aircraft
+    current_MEF = database.query_mef()
+    friendly_aircraft_list = current_MEF['actions'].iloc[0]  # Expect list of 3 aircraft
+    #friendly_aircraft_list = json.loads(friendly_aircraft_list)
+    #print(type(friendly_aircraft_list))
+    #print(friendly_aircraft_list[0].keys())
+    target_aircraft = current_MEF['entity'].iloc[0]          # Expect single hostile aircraft
 
+     
+
+    
     # Step 2: Run evaluations
     all_results = {}
     for idx, friendly in enumerate(friendly_aircraft_list, start=1):
@@ -67,6 +80,7 @@ def main():
         evaluation = evaluate_aircraft(friendly, target_aircraft)
         all_results[f"Aircraft_{idx}"] = evaluation
 
+    return
     # Step 3: Summarize results
     print("\n===== Final Summary =====")
     for ac_name, eval_data in all_results.items():
