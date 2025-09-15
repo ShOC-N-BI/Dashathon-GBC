@@ -41,14 +41,14 @@ def query_mef():
         user=DB_USER,
         password=DB_PASS
     )
+        query = f"SELECT * FROM {mef_data};"
+        df_mef_data = pd.read_sql(query, conn)
     except Exception as e:
         print("Error:", e)
 
     finally:
         if 'conn' in locals():
             conn.close()   
-    query = f"SELECT * FROM {mef_data};"
-    df_mef_data = pd.read_sql(query, conn)
     return df_mef_data
 
 def query_red_air_act_a2a():
@@ -62,14 +62,14 @@ def query_red_air_act_a2a():
         user=DB_USER,
         password=DB_PASS
     )
+        query = f"SELECT * FROM {red_air_act_a2a};"
+        df_red_air_act_a2a = pd.read_sql(query, conn)
     except Exception as e:
         print("Error:", e)
 
     finally:
         if 'conn' in locals():
-            conn.close()   
-    query = f"SELECT * FROM {red_air_act_a2a};"
-    df_red_air_act_a2a = pd.read_sql(query, conn)
+            conn.close()    
     return df_red_air_act_a2a
 
 def query_red_air_act_s2a():
@@ -83,14 +83,15 @@ def query_red_air_act_s2a():
         user=DB_USER,
         password=DB_PASS
     )
+        query = f"SELECT * FROM {red_air_act_s2a};"
+        df_red_air_act_s2a = pd.read_sql(query, conn)
     except Exception as e:
         print("Error:", e)
 
     finally:
         if 'conn' in locals():
             conn.close()   
-    query = f"SELECT * FROM {red_air_act_s2a};"
-    df_red_air_act_s2a = pd.read_sql(query, conn)
+    
     return df_red_air_act_s2a
 
 def query_red_air_del_a2a():
@@ -104,14 +105,15 @@ def query_red_air_del_a2a():
         user=DB_USER,
         password=DB_PASS
     )
+        query = f"SELECT * FROM {red_air_del_a2a};"
+        df_red_air_del_a2a = pd.read_sql(query, conn)
     except Exception as e:
         print("Error:", e)
 
     finally:
         if 'conn' in locals():
             conn.close()
-    query = f"SELECT * FROM {red_air_del_a2a};"
-    df_red_air_del_a2a = pd.read_sql(query, conn)
+    
     return df_red_air_del_a2a
 
 def query_red_air_del_s2a():
@@ -125,14 +127,14 @@ def query_red_air_del_s2a():
         user=DB_USER,
         password=DB_PASS
     )
+        query = f"SELECT * FROM {red_air_del_s2a};"
+        df_red_air_del_s2a = pd.read_sql(query, conn)
     except Exception as e:
         print("Error:", e)
 
     finally:
         if 'conn' in locals():
-            conn.close()       
-    query = f"SELECT * FROM {red_air_del_s2a};"
-    df_red_air_del_s2a = pd.read_sql(query, conn)
+            conn.close()           
     return df_red_air_del_s2a
 
 def query_red_ground_act_a2s():
@@ -146,14 +148,14 @@ def query_red_ground_act_a2s():
         user=DB_USER,
         password=DB_PASS
     )
+        query = f"SELECT * FROM {red_ground_act_a2s};"
+        df_red_ground_act_a2s = pd.read_sql(query, conn)
     except Exception as e:
         print("Error:", e)
 
     finally:
         if 'conn' in locals():
-            conn.close()       
-    query = f"SELECT * FROM {red_ground_act_a2s};"
-    df_red_ground_act_a2s = pd.read_sql(query, conn)
+            conn.close()           
     return df_red_ground_act_a2s
 
 def query_red_ground_act_drone():
@@ -167,14 +169,14 @@ def query_red_ground_act_drone():
         user=DB_USER,
         password=DB_PASS
     )
+        query = f"SELECT * FROM {red_ground_act_drone};"
+        df_red_ground_act_drone = pd.read_sql(query, conn)
     except Exception as e:
         print("Error:", e)
 
     finally:
         if 'conn' in locals():
-            conn.close()       
-    query = f"SELECT * FROM {red_ground_act_drone};"
-    df_red_ground_act_drone = pd.read_sql(query, conn)
+            conn.close()        
     return df_red_ground_act_drone
 
 def query_red_ground_act_s2s():
@@ -188,14 +190,14 @@ def query_red_ground_act_s2s():
         user=DB_USER,
         password=DB_PASS
     )
+        query = f"SELECT * FROM {red_ground_act_s2s};"
+        df_red_ground_act_s2s = pd.read_sql(query, conn)
     except Exception as e:
         print("Error:", e)
 
     finally:
         if 'conn' in locals():
             conn.close()       
-    query = f"SELECT * FROM {red_ground_act_s2s};"
-    df_red_ground_act_s2s = pd.read_sql(query, conn)
     return df_red_ground_act_s2s
 
 def query_red_ground_del_a2s():
@@ -209,14 +211,14 @@ def query_red_ground_del_a2s():
         user=DB_USER,
         password=DB_PASS
     )
+        query = f"SELECT * FROM {red_ground_del_a2s};"
+        df_red_ground_del_a2s = pd.read_sql(query, conn)
     except Exception as e:
         print("Error:", e)
 
     finally:
         if 'conn' in locals():
             conn.close()       
-    query = f"SELECT * FROM {red_ground_del_a2s};"
-    df_red_ground_del_a2s = pd.read_sql(query, conn)
     return df_red_ground_del_a2s
 
 def query_red_ground_del_drone():
@@ -230,14 +232,14 @@ def query_red_ground_del_drone():
         user=DB_USER,
         password=DB_PASS
     )
+        query = f"SELECT * FROM {red_ground_del_drone};"
+        df_red_ground_del_drone = pd.read_sql(query, conn)
     except Exception as e:
         print("Error:", e)
 
     finally:
         if 'conn' in locals():
-            conn.close()       
-    query = f"SELECT * FROM {red_ground_del_drone};"
-    df_red_ground_del_drone = pd.read_sql(query, conn)
+            conn.close()           
     return df_red_ground_del_drone
 
 def query_red_ground_del_s2s():
@@ -251,14 +253,14 @@ def query_red_ground_del_s2s():
         user=DB_USER,
         password=DB_PASS
     )
+        query = f"SELECT * FROM {red_ground_del_s2s};"
+        df_red_ground_del_s2s = pd.read_sql(query, conn)
     except Exception as e:
         print("Error:", e)
 
     finally:
         if 'conn' in locals():
-            conn.close()       
-    query = f"SELECT * FROM {red_ground_del_s2s};"
-    df_red_ground_del_s2s = pd.read_sql(query, conn)
+            conn.close()          
     return df_red_ground_del_s2s
 
 def query_red_maritime_act_a2s():
@@ -272,14 +274,14 @@ def query_red_maritime_act_a2s():
         user=DB_USER,
         password=DB_PASS
     )
+        query = f"SELECT * FROM {red_maritime_act_a2s};"
+        df_red_maritime_act_a2s = pd.read_sql(query, conn)
     except Exception as e:
         print("Error:", e)
 
     finally:
         if 'conn' in locals():
-            conn.close()       
-    query = f"SELECT * FROM {red_maritime_act_a2s};"
-    df_red_maritime_act_a2s = pd.read_sql(query, conn)
+            conn.close()           
     return df_red_maritime_act_a2s
 
 def query_red_maritime_act_drone():
@@ -293,14 +295,14 @@ def query_red_maritime_act_drone():
         user=DB_USER,
         password=DB_PASS
     )
+        query = f"SELECT * FROM {red_maritime_act_drone};"
+        df_red_maritime_act_drone = pd.read_sql(query, conn)
     except Exception as e:
         print("Error:", e)
 
     finally:
         if 'conn' in locals():
             conn.close()   
-    query = f"SELECT * FROM {red_maritime_act_drone};"
-    df_red_maritime_act_drone = pd.read_sql(query, conn)
     return df_red_maritime_act_drone
 
 def query_red_maritime_act_s2s():
@@ -314,14 +316,14 @@ def query_red_maritime_act_s2s():
         user=DB_USER,
         password=DB_PASS
     )
+        query = f"SELECT * FROM {red_maritime_act_s2s};"
+        df_red_maritime_act_s2s = pd.read_sql(query, conn)
     except Exception as e:
         print("Error:", e)
 
     finally:
         if 'conn' in locals():
             conn.close()       
-    query = f"SELECT * FROM {red_maritime_act_s2s};"
-    df_red_maritime_act_s2s = pd.read_sql(query, conn)
     return df_red_maritime_act_s2s
 
 def query_red_maritime_del_a2s():
@@ -335,14 +337,14 @@ def query_red_maritime_del_a2s():
         user=DB_USER,
         password=DB_PASS
     )
+        query = f"SELECT * FROM {red_maritime_del_a2s};"
+        df_red_maritime_del_a2s = pd.read_sql(query, conn)
     except Exception as e:
         print("Error:", e)
 
     finally:
         if 'conn' in locals():
             conn.close()      
-    query = f"SELECT * FROM {red_maritime_del_a2s};"
-    df_red_maritime_del_a2s = pd.read_sql(query, conn)
     return df_red_maritime_del_a2s
 
 def query_red_maritime_del_drone():
@@ -356,14 +358,14 @@ def query_red_maritime_del_drone():
         user=DB_USER,
         password=DB_PASS
     )
+        query = f"SELECT * FROM {red_maritime_del_drone};"
+        df_red_maritime_del_drone = pd.read_sql(query, conn)
     except Exception as e:
         print("Error:", e)
 
     finally:
         if 'conn' in locals():
             conn.close()       
-    query = f"SELECT * FROM {red_maritime_del_drone};"
-    df_red_maritime_del_drone = pd.read_sql(query, conn)
     return df_red_maritime_del_drone
 
 def query_red_maritime_del_s2s():
@@ -377,14 +379,14 @@ def query_red_maritime_del_s2s():
         user=DB_USER,
         password=DB_PASS
     )
+        query = f"SELECT * FROM {red_maritime_del_s2s};"
+        df_red_maritime_del_s2s = pd.read_sql(query, conn)
     except Exception as e:
         print("Error:", e)
 
     finally:
         if 'conn' in locals():
             conn.close()       
-    query = f"SELECT * FROM {red_maritime_del_s2s};"
-    df_red_maritime_del_s2s = pd.read_sql(query, conn)
     return df_red_maritime_del_s2s
 
     #Show preview of data
