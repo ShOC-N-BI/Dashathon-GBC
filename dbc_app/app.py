@@ -17,7 +17,7 @@ Purpose:
 import database 
 #import armament
 #import hostiles
-#import fuel
+import fuel
 #import time_to_target  
 import json
 
