@@ -3,7 +3,7 @@ import psycopg2
 import pandas as pd
 
 # Database connection settings 
-DB_HOST = "10.5.185.53"       
+DB_HOST = "10.5.185.21"       
 DB_PORT = "5432"            
 DB_NAME = "shooca_db"   
 DB_USER = "shooca"   
