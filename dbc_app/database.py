@@ -24,77 +24,380 @@ red_ground_act_s2s = "red_ground_actionables_surf_to_surf"
 red_ground_del_a2s = "red_ground_deliverables_air_to_surf"
 red_ground_del_drone = "red_ground_deliverables_drone"
 red_ground_del_s2s = "red_ground_deliverables_surf_to_surf"
-red_maritine_act_a2s = "red_maritine_actionables_air_to_surf"
-red_maritine_act_drone = "red_maritine_actionables_drone"
-red_maritine_act_s2s = "red_maritine_actionables_surf_to_surf"
-red_maritine_del_a2s = "red_maritine_deliverables_air_to_surf"
-red_maritine_del_drone = "red_maritine_deliverables_drone"
-red_maritine_del_s2s = "red_maritine_deliverables_surf_to_surf"
+red_maritime_act_a2s = "red_maritime_actionables_air_to_surf"
+red_maritime_act_drone = "red_maritime_actionables_drone"
+red_maritime_act_s2s = "red_maritime_actionables_surf_to_surf"
+red_maritime_del_a2s = "red_maritime_deliverables_air_to_surf"
+red_maritime_del_drone = "red_maritime_deliverables_drone"
+red_maritime_del_s2s = "red_maritime_deliverables_surf_to_surf"
 
-try:
-    # Connect to PostgreSQL
-    conn = psycopg2.connect(
-        host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASS
-    )
 
     # Use pandas to fetch the data
-    query = f"SELECT * FROM {mef_data};"
-    df_mef_data = pd.read_sql(query, conn)
+def query_mef(): 
+    df_mef_data = pd.DataFrame()
+    try:
+    # Connect to PostgreSQL
+        conn = psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS
+    )
+        query = f"SELECT * FROM {mef_data} order by timestamp desc limit 1;"
+        df_mef_data = pd.read_sql(query, conn)
 
-    query = f"SELECT * FROM {red_air_act_a2a};"
-    df_red_air_act_a2a = pd.read_sql(query, conn)
+    except Exception as e:
+        print("Error:", e)
 
-    query = f"SELECT * FROM {red_air_act_s2a};"
-    df_red_air_act_s2a = pd.read_sql(query, conn)
+    finally:
+        if 'conn' in locals():
+            conn.close()   
 
-    query = f"SELECT * FROM {red_air_del_a2a};"
-    df_red_air_del_a2a = pd.read_sql(query, conn)
+    
+    return df_mef_data
+ 
+    
 
-    query = f"SELECT * FROM {red_air_del_s2a};"
-    df_red_air_del_s2a = pd.read_sql(query, conn)
+def query_red_air_act_a2a():
+    df_red_air_act_a2a = pd.DataFrame()
+    try:
+    # Connect to PostgreSQL
+        conn = psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS
+    )
+        query = f"SELECT * FROM {red_air_act_a2a};"
+        df_red_air_act_a2a = pd.read_sql(query, conn)
+    except Exception as e:
+        print("Error:", e)
 
-    query = f"SELECT * FROM {red_ground_act_a2s};"
-    df_red_ground_act_a2s = pd.read_sql(query, conn)
+    finally:
+        if 'conn' in locals():
+            conn.close()    
+    return df_red_air_act_a2a
 
-    query = f"SELECT * FROM {red_ground_act_drone};"
-    df_red_ground_act_drone = pd.read_sql(query, conn)
+def query_red_air_act_s2a():
+    df_red_air_act_s2a = pd.DataFrame()
+    try:
+    # Connect to PostgreSQL
+        conn = psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS
+    )
+        query = f"SELECT * FROM {red_air_act_s2a};"
+        df_red_air_act_s2a = pd.read_sql(query, conn)
+    except Exception as e:
+        print("Error:", e)
 
-    query = f"SELECT * FROM {red_ground_act_s2s};"
-    df_red_ground_act_s2s = pd.read_sql(query, conn)
+    finally:
+        if 'conn' in locals():
+            conn.close()   
+    
+    return df_red_air_act_s2a
 
-    query = f"SELECT * FROM {red_ground_del_a2s};"
-    df_red_ground_del_a2s = pd.read_sql(query, conn)
+def query_red_air_del_a2a():
+    df_red_air_del_a2a = pd.DataFrame()
+    try:
+    # Connect to PostgreSQL
+        conn = psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS
+    )
+        query = f"SELECT * FROM {red_air_del_a2a};"
+        df_red_air_del_a2a = pd.read_sql(query, conn)
+    except Exception as e:
+        print("Error:", e)
 
-    query = f"SELECT * FROM {red_ground_del_drone};"
-    df_red_ground_del_drone = pd.read_sql(query, conn)
+    finally:
+        if 'conn' in locals():
+            conn.close()
+    
+    return df_red_air_del_a2a
 
-    query = f"SELECT * FROM {red_ground_del_s2s};"
-    df_red_ground_del_s2s = pd.read_sql(query, conn)
+def query_red_air_del_s2a():
+    df_red_air_del_s2a = pd.DataFrame()
+    try:
+    # Connect to PostgreSQL
+        conn = psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS
+    )
+        query = f"SELECT * FROM {red_air_del_s2a};"
+        df_red_air_del_s2a = pd.read_sql(query, conn)
+    except Exception as e:
+        print("Error:", e)
 
-    query = f"SELECT * FROM {red_maritine_act_a2s};"
-    df_red_maritine_act_a2s = pd.read_sql(query, conn)
+    finally:
+        if 'conn' in locals():
+            conn.close()           
+    return df_red_air_del_s2a
 
-    query = f"SELECT * FROM {red_maritine_act_drone};"
-    df_red_maritine_act_drone = pd.read_sql(query, conn)
+def query_red_ground_act_a2s():
+    df_red_ground_act_a2s = pd.DataFrame()
+    try:
+    # Connect to PostgreSQL
+        conn = psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS
+    )
+        query = f"SELECT * FROM {red_ground_act_a2s};"
+        df_red_ground_act_a2s = pd.read_sql(query, conn)
+    except Exception as e:
+        print("Error:", e)
 
-    query = f"SELECT * FROM {red_maritine_act_s2s};"
-    df_red_maritine_act_s2s = pd.read_sql(query, conn)
+    finally:
+        if 'conn' in locals():
+            conn.close()           
+    return df_red_ground_act_a2s
 
-    query = f"SELECT * FROM {red_maritine_del_a2s};"
-    df_red_maritine_del_a2s = pd.read_sql(query, conn)
+def query_red_ground_act_drone():
+    df_red_ground_act_drone = pd.DataFrame()
+    try:
+    # Connect to PostgreSQL
+        conn = psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS
+    )
+        query = f"SELECT * FROM {red_ground_act_drone};"
+        df_red_ground_act_drone = pd.read_sql(query, conn)
+    except Exception as e:
+        print("Error:", e)
 
-    query = f"SELECT * FROM {red_maritine_del_drone};"
-    df_red_maritine_del_drone = pd.read_sql(query, conn)
+    finally:
+        if 'conn' in locals():
+            conn.close()        
+    return df_red_ground_act_drone
 
-    query = f"SELECT * FROM {red_maritine_del_s2s};"
-    df_red_maritine_del_s2s = pd.read_sql(query, conn)
+def query_red_ground_act_s2s():
+    df_red_ground_act_s2s = pd.DataFrame()
+    try:
+    # Connect to PostgreSQL
+        conn = psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS
+    )
+        query = f"SELECT * FROM {red_ground_act_s2s};"
+        df_red_ground_act_s2s = pd.read_sql(query, conn)
+    except Exception as e:
+        print("Error:", e)
 
-    # Show preview of data
-    print(df_red_maritine_del_s2s.head())
+    finally:
+        if 'conn' in locals():
+            conn.close()       
+    return df_red_ground_act_s2s
 
-except Exception as e:
-    print("Error:", e)
+def query_red_ground_del_a2s():
+    df_red_ground_del_a2s = pd.DataFrame()
+    try:
+    # Connect to PostgreSQL
+        conn = psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS
+    )
+        query = f"SELECT * FROM {red_ground_del_a2s};"
+        df_red_ground_del_a2s = pd.read_sql(query, conn)
+    except Exception as e:
+        print("Error:", e)
 
-finally:
-    if "conn" in locals():
-        conn.close()
+    finally:
+        if 'conn' in locals():
+            conn.close()       
+    return df_red_ground_del_a2s
+
+def query_red_ground_del_drone():
+    df_red_ground_del_drone = pd.DataFrame()
+    try:
+    # Connect to PostgreSQL
+        conn = psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS
+    )
+        query = f"SELECT * FROM {red_ground_del_drone};"
+        df_red_ground_del_drone = pd.read_sql(query, conn)
+    except Exception as e:
+        print("Error:", e)
+
+    finally:
+        if 'conn' in locals():
+            conn.close()           
+    return df_red_ground_del_drone
+
+def query_red_ground_del_s2s():
+    df_red_ground_del_s2s = pd.DataFrame()
+    try:
+    # Connect to PostgreSQL
+        conn = psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS
+    )
+        query = f"SELECT * FROM {red_ground_del_s2s};"
+        df_red_ground_del_s2s = pd.read_sql(query, conn)
+    except Exception as e:
+        print("Error:", e)
+
+    finally:
+        if 'conn' in locals():
+            conn.close()          
+    return df_red_ground_del_s2s
+
+def query_red_maritime_act_a2s():
+    df_red_maritime_act_a2s = pd.DataFrame()
+    try:
+    # Connect to PostgreSQL
+        conn = psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS
+    )
+        query = f"SELECT * FROM {red_maritime_act_a2s};"
+        df_red_maritime_act_a2s = pd.read_sql(query, conn)
+    except Exception as e:
+        print("Error:", e)
+
+    finally:
+        if 'conn' in locals():
+            conn.close()           
+    return df_red_maritime_act_a2s
+
+def query_red_maritime_act_drone():
+    df_red_maritime_act_drone = pd.DataFrame()
+    try:
+    # Connect to PostgreSQL
+        conn = psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS
+    )
+        query = f"SELECT * FROM {red_maritime_act_drone};"
+        df_red_maritime_act_drone = pd.read_sql(query, conn)
+    except Exception as e:
+        print("Error:", e)
+
+    finally:
+        if 'conn' in locals():
+            conn.close()   
+    return df_red_maritime_act_drone
+
+def query_red_maritime_act_s2s():
+    df_red_maritime_act_s2s = pd.DataFrame()
+    try:
+    # Connect to PostgreSQL
+        conn = psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS
+    )
+        query = f"SELECT * FROM {red_maritime_act_s2s};"
+        df_red_maritime_act_s2s = pd.read_sql(query, conn)
+    except Exception as e:
+        print("Error:", e)
+
+    finally:
+        if 'conn' in locals():
+            conn.close()       
+    return df_red_maritime_act_s2s
+
+def query_red_maritime_del_a2s():
+    df_red_maritime_del_a2s = pd.DataFrame()
+    try:
+    # Connect to PostgreSQL
+        conn = psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS
+    )
+        query = f"SELECT * FROM {red_maritime_del_a2s};"
+        df_red_maritime_del_a2s = pd.read_sql(query, conn)
+    except Exception as e:
+        print("Error:", e)
+
+    finally:
+        if 'conn' in locals():
+            conn.close()      
+    return df_red_maritime_del_a2s
+
+def query_red_maritime_del_drone():
+    df_red_maritime_del_drone = pd.DataFrame()
+    try:
+    # Connect to PostgreSQL
+        conn = psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS
+    )
+        query = f"SELECT * FROM {red_maritime_del_drone};"
+        df_red_maritime_del_drone = pd.read_sql(query, conn)
+    except Exception as e:
+        print("Error:", e)
+
+    finally:
+        if 'conn' in locals():
+            conn.close()       
+    return df_red_maritime_del_drone
+
+def query_red_maritime_del_s2s():
+    df_red_maritime_del_s2s = pd.DataFrame()
+    try:
+    # Connect to PostgreSQL
+        conn = psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS
+    )
+        query = f"SELECT * FROM {red_maritime_del_s2s};"
+        df_red_maritime_del_s2s = pd.read_sql(query, conn)
+    except Exception as e:
+        print("Error:", e)
+
+    finally:
+        if 'conn' in locals():
+            conn.close()       
+    return df_red_maritime_del_s2s
+
+    #Show preview of data
+    # print(df_red_maritime_del_s2s.head())
+
+
