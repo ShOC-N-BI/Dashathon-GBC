@@ -1,117 +1,62 @@
-# fuel.py
-from __future__ import annotations
-import math
-from dataclasses import dataclass
-from typing import Dict, Tuple, List, Optional, Union, Any
 import database
 import pandas as pd
+import numpy as np
+import math
 
-# ----------------------------- Utility Functions -----------------------------
-
-def haversine(coord1: Tuple[float, float], coord2: Tuple[float, float]) -> float:
-    """
-    Great-circle distance between two (lat, lon) pairs in nautical miles.
-    """
-    lat1, lon1 = coord1
-    lat2, lon2 = coord2
-    R = 3440.065  # earth radius in nautical miles
-
-    phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    d_phi = math.radians(lat2 - lat1)
-    d_lambda = math.radians(lon2 - lon1)
-
-    a = math.sin(d_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return R * c
-
-# ----------------------------- Data Classes ----------------------------------
-
-@dataclass
-class Aircraft:
-    bc3_jtn: str
-    aircraft_type: str
-    fuel_capacity: float
-    fuel_remaining: float
-    location: Tuple[float, float]
-    groundspeed: float
-    heading: float
-    vcs: str
-
-    consumption_rate: float = 1.0
-    max_fuel_capacity: float = 0.0
-
-    def __post_init__(self):
-        atype = (self.aircraft_type or "Unknown").upper()
-        fuel_data = AIRCRAFT_FUEL_DATA.get(atype, {"consumption_rate": 7000, "max_fuel_capacity": 10000})
-        # Protect against zero / falsy values
-        self.consumption_rate = float(fuel_data.get("consumption_rate") or 1.0)
-        self.max_fuel_capacity = float(fuel_data.get("max_fuel_capacity") or 0.0)
-
-        # Safeguard numeric fields
-        self.fuel_remaining = float(self.fuel_remaining or 0.0)
-        self.fuel_capacity = float(self.fuel_capacity or self.max_fuel_capacity or 0.0)
-        self.groundspeed = float(self.groundspeed or 0.0)
-
-    def range_remaining(self) -> float:
-        """Return remaining range (nautical miles) based on fuel_remaining, consumption_rate, and groundspeed."""
-        if self.consumption_rate <= 0 or self.groundspeed <= 0:
-            return 0.0
-        hours_left = self.fuel_remaining / self.consumption_rate  # hours of flight left
-        return hours_left * self.groundspeed
-
-    def max_range(self) -> float:
-        """Return maximum possible range with full tanks (nautical miles)."""
-        if self.consumption_rate <= 0 or self.groundspeed <= 0:
-            return 0.0
-        hours_full = self.max_fuel_capacity / self.consumption_rate
-        return hours_full * self.groundspeed
-
-@dataclass
-class Tanker:
-    tanker_id: str
-    location: Tuple[float, float]
-    tanker_type: str
-    refuel_speed: float = 1000.0  # lb/min
-
-    def __post_init__(self):
-        self.refuel_speed = float(REFUEL_SPEEDS.get(self.tanker_type, self.refuel_speed))
-
-@dataclass
-class Target:
-    target_id: str
-    location: Tuple[float, float]
-
-# ----------------------------- Constants -------------------------------------
-
+# Aircraft fuel data (lbs/hour consumption, max fuel capacity in lbs)
 AIRCRAFT_FUEL_DATA = {
-    # normalized keys (upper) for matching: values are example placeholders
-    "FA18F": {"consumption_rate": 6500, "max_fuel_capacity": 14500},
-    "FA18E": {"consumption_rate": 6500, "max_fuel_capacity": 14500},
-    "EA18G": {"consumption_rate": 6700, "max_fuel_capacity": 14500},
-    "F-35A": {"consumption_rate": 7000, "max_fuel_capacity": 18750},
-    "F-35B": {"consumption_rate": 7300, "max_fuel_capacity": 13500},
-    "F-35C": {"consumption_rate": 7200, "max_fuel_capacity": 19700},
-    "F-15E": {"consumption_rate": 7500, "max_fuel_capacity": 27000},
-    "F-16": {"consumption_rate": 5800, "max_fuel_capacity": 7000},
-    "F-22": {"consumption_rate": 8000, "max_fuel_capacity": 18000},
-    "B-2": {"consumption_rate": 11000, "max_fuel_capacity": 167000},
-    "B-52": {"consumption_rate": 12000, "max_fuel_capacity": 312000},
-    "B-1B": {"consumption_rate": 13500, "max_fuel_capacity": 184000},
-    "MQ-9": {"consumption_rate": 400, "max_fuel_capacity": 9000},
-    "RQ-4": {"consumption_rate": 1200, "max_fuel_capacity": 17500},
-    "RC-135": {"consumption_rate": 11000, "max_fuel_capacity": 130000},
-    "E-3": {"consumption_rate": 10000, "max_fuel_capacity": 130000},
-    "E-2": {"consumption_rate": 5000, "max_fuel_capacity": 5800},
-    "P-3": {"consumption_rate": 4200, "max_fuel_capacity": 64000},
-    "P-8": {"consumption_rate": 8000, "max_fuel_capacity": 100000},
-    "KC-135": {"consumption_rate": 11000, "max_fuel_capacity": 200000},
-    "KC-46": {"consumption_rate": 12000, "max_fuel_capacity": 212000},
-    "C-130": {"consumption_rate": 5000, "max_fuel_capacity": 45000},
-    "C-17": {"consumption_rate": 20000, "max_fuel_capacity": 240000},
-    "U2": {"consumption_rate": 2500, "max_fuel_capacity": 28000},
-    # placeholders
-    "NS": {"consumption_rate": 0, "max_fuel_capacity": 0},
+    "FA18F": {"consumption_rate": 6500, "max_fuel_capacity": 14500, "cruise_speed": 850},
+    "B-2 SPIR": {"consumption_rate": 11000, "max_fuel_capacity": 167000, "cruise_speed": 900},
+    "RQ-4": {"consumption_rate": 1200, "max_fuel_capacity": 17500, "cruise_speed": 575},
+    "F16J": {"consumption_rate": 5800, "max_fuel_capacity": 7000, "cruise_speed": 850},
+    "F-35C": {"consumption_rate": 7200, "max_fuel_capacity": 19700, "cruise_speed": 850},
+    "RQ4": {"consumption_rate": 1200, "max_fuel_capacity": 17500, "cruise_speed": 575},
+    "MQ9": {"consumption_rate": 400, "max_fuel_capacity": 9000, "cruise_speed": 310},
+    "F35B": {"consumption_rate": 7300, "max_fuel_capacity": 13500, "cruise_speed": 850},
+    "F-15E": {"consumption_rate": 7500, "max_fuel_capacity": 27000, "cruise_speed": 900},
+    "KC46": {"consumption_rate": 12000, "max_fuel_capacity": 212000, "cruise_speed": 850},
+    "B-52": {"consumption_rate": 12000, "max_fuel_capacity": 312000, "cruise_speed": 830},
+    "EA18G": {"consumption_rate": 6700, "max_fuel_capacity": 14500, "cruise_speed": 850},
+    "E-3": {"consumption_rate": 10000, "max_fuel_capacity": 130000, "cruise_speed": 780},
+    "RC135VW": {"consumption_rate": 11000, "max_fuel_capacity": 130000, "cruise_speed": 800},
+    "F-16": {"consumption_rate": 5800, "max_fuel_capacity": 7000, "cruise_speed": 850},
+    "E2D": {"consumption_rate": 5000, "max_fuel_capacity": 5800, "cruise_speed": 600},
+    "MQ-9": {"consumption_rate": 400, "max_fuel_capacity": 9000, "cruise_speed": 310},
+    "FA18E": {"consumption_rate": 6500, "max_fuel_capacity": 14500, "cruise_speed": 850},
+    "MH60S": {"consumption_rate": 1200, "max_fuel_capacity": 6000, "cruise_speed": 270},
+    "EC-130": {"consumption_rate": 5200, "max_fuel_capacity": 60000, "cruise_speed": 540},
+    "U2": {"consumption_rate": 2500, "max_fuel_capacity": 28000, "cruise_speed": 760},
+    "F-35A": {"consumption_rate": 7000, "max_fuel_capacity": 18750, "cruise_speed": 850},
+    "C17": {"consumption_rate": 20000, "max_fuel_capacity": 240000, "cruise_speed": 830},
+    "MC130": {"consumption_rate": 5200, "max_fuel_capacity": 60000, "cruise_speed": 540},
+    "F35C": {"consumption_rate": 7200, "max_fuel_capacity": 19700, "cruise_speed": 850},
+    "C-130": {"consumption_rate": 5000, "max_fuel_capacity": 45000, "cruise_speed": 540},
+    "B2": {"consumption_rate": 11000, "max_fuel_capacity": 167000, "cruise_speed": 900},
+    "F35A": {"consumption_rate": 7000, "max_fuel_capacity": 18750, "cruise_speed": 850},
+    "RC-135": {"consumption_rate": 11000, "max_fuel_capacity": 130000, "cruise_speed": 800},
+    "F-35B": {"consumption_rate": 7300, "max_fuel_capacity": 13500, "cruise_speed": 850},
+    "F-A-22": {"consumption_rate": 8000, "max_fuel_capacity": 18000, "cruise_speed": 850},
+    "DIS(265)": {"consumption_rate": 0, "max_fuel_capacity": 0, "cruise_speed": 0},
+    "F-A-18E-F": {"consumption_rate": 6500, "max_fuel_capacity": 14500, "cruise_speed": 850},
+    "F16C": {"consumption_rate": 5800, "max_fuel_capacity": 7000, "cruise_speed": 850},
+    "MH60R": {"consumption_rate": 1200, "max_fuel_capacity": 6000, "cruise_speed": 270},
+    "P8": {"consumption_rate": 8000, "max_fuel_capacity": 100000, "cruise_speed": 820},
+    "F22": {"consumption_rate": 8000, "max_fuel_capacity": 18000, "cruise_speed": 850},
+    "KC135": {"consumption_rate": 11000, "max_fuel_capacity": 200000, "cruise_speed": 850},
+    "C130": {"consumption_rate": 5000, "max_fuel_capacity": 45000, "cruise_speed": 540},
+    "B-1B": {"consumption_rate": 13500, "max_fuel_capacity": 184000, "cruise_speed": 900},
+    "F15E": {"consumption_rate": 7500, "max_fuel_capacity": 27000, "cruise_speed": 900},
+    "P-3": {"consumption_rate": 4200, "max_fuel_capacity": 64000, "cruise_speed": 650},
+    "E-2C": {"consumption_rate": 5000, "max_fuel_capacity": 5800, "cruise_speed": 600},
+    "E7": {"consumption_rate": 9500, "max_fuel_capacity": 130000, "cruise_speed": 800},
+    "B1B": {"consumption_rate": 13500, "max_fuel_capacity": 184000, "cruise_speed": 900},
+    "KC-135": {"consumption_rate": 11000, "max_fuel_capacity": 200000, "cruise_speed": 850},
+    "P3": {"consumption_rate": 4200, "max_fuel_capacity": 64000, "cruise_speed": 650},
+    "B52": {"consumption_rate": 12000, "max_fuel_capacity": 312000, "cruise_speed": 830},
+    "EA37B": {"consumption_rate": 4500, "max_fuel_capacity": 41300, "cruise_speed": 740},
+    "E3": {"consumption_rate": 10000, "max_fuel_capacity": 130000, "cruise_speed": 780}
 }
+
 
 REFUEL_SPEEDS = {
     "KC-135": 1000,
@@ -119,150 +64,84 @@ REFUEL_SPEEDS = {
     "KC-46": 1100,
 }
 
-# ----------------------------- Mission Logic ---------------------------------
-
-def find_nearest_tanker(asset: Aircraft, tankers: List[Tanker]) -> Optional[Tanker]:
-    """Return the nearest tanker to the asset (or None if no tankers)."""
-    if not tankers:
-        return None
-    return min(tankers, key=lambda t: haversine(asset.location, t.location))
-
-def evaluate_mission(asset: Aircraft, target: Target, tankers: Optional[List[Tanker]] = None) -> int:
+def haversine(lat1, lon1, lat2, lon2):
     """
-    Evaluate mission feasibility and return:
-      3 -> Green  (can complete round trip, or can refuel after target)
-      2 -> Yellow (must refuel before target)
-      1 -> Red    (cannot complete round trip)
+    Calculate the great-circle distance between two points on the Earth in km.
     """
-    tankers = tankers or []
-    distance_to_target = haversine(asset.location, target.location)
-    round_trip_distance = distance_to_target * 2.0
+    R = 6371  # Earth radius in km
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
 
-    range_remaining = float(asset.range_remaining())
-    max_range = float(asset.max_range())
+    a = math.sin(delta_phi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda/2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    return R * c
 
-    # If we have an on-route tanker that can extend the mission this function could be
-    # expanded. For now, use simple checks analogous to your original logic.
-    if range_remaining >= round_trip_distance:
-        return 3  # Green
-    # can reach target and can refuel after target (i.e., max range with full tank >= round trip)
-    if range_remaining >= distance_to_target and max_range >= round_trip_distance:
-        return 3  # Green (can refuel after target)
-    if max_range >= round_trip_distance:
-        return 2  # Yellow (must refuel before target)
-    return 1  # Red (cannot complete round trip)
-
-# ----------------------------- Input Parsing Helpers -------------------------
-
-def _row_to_aircraft(row: Union[pd.Series, Dict[str, Any]]) -> Aircraft:
-    """Convert a DataFrame row or dict into Aircraft dataclass."""
-    get = row.get if isinstance(row, dict) else lambda k, default=None: row.get(k, default) if k in row.index else default
-
-    bc3_jtn = get("bc3_jtn", get("callsign", get("id", "unknown")))
-    aircraft_type = str(get("aircraft_type", get("type", "Unknown")))
-    fuel_capacity = get("fuel_capacity", get("max_fuel_capacity", 0)) or 0.0
-    fuel_remaining = get("fuel_remaining", get("fuel", 0)) or 0.0
-    lat = float(get("lat", get("latitude", 0)) or 0.0)
-    lon = float(get("lon", get("longitude", 0)) or 0.0)
-    groundspeed = get("groundspeed", get("speed", 0)) or 0.0
-    heading = get("heading", 0) or 0.0
-    vcs = get("vcs", "") or ""
-
-    return Aircraft(
-        bc3_jtn=str(bc3_jtn),
-        aircraft_type=aircraft_type,
-        fuel_capacity=float(fuel_capacity),
-        fuel_remaining=float(fuel_remaining),
-        location=(lat, lon),
-        groundspeed=float(groundspeed),
-        heading=float(heading),
-        vcs=str(vcs)
-    )
-
-def _normalize_friendly_input(friendly: Union[str, pd.DataFrame, Dict, List]) -> Aircraft:
+def find_nearest_tanker(friendly_lat, friendly_lon, tankers):
     """
-    Accepts:
-      - callsign string -> queries database.query_friendly_asset(callsign)
-      - pandas.DataFrame -> uses first row
-      - dict -> builds Aircraft from dict
-      - list[dict] -> picks the first element (you can modify to pick nearest, etc)
+    Returns the closest tanker and distance to it.
+    tankers : list of dicts with keys "latitude" and "longitude"
     """
-    # callsign string: query database (database.query_friendly_asset should return a DataFrame)
-    if isinstance(friendly, str):
-        df = database.query_friendly_asset(friendly)
-        if isinstance(df, pd.DataFrame) and not df.empty:
-            return _row_to_aircraft(df.iloc[0])
-        # fallback if DB didn't return anything
-        raise ValueError(f"No friendly asset found for callsign: {friendly}")
+    nearest = None
+    min_distance = float("inf")
 
-    # pandas DataFrame
-    if isinstance(friendly, pd.DataFrame):
-        if friendly.empty:
-            raise ValueError("Empty DataFrame provided for friendly asset")
-        return _row_to_aircraft(friendly.iloc[0])
+    for tanker in tankers:
+        tanker_lat = float(tanker["latitude"])
+        tanker_lon = float(tanker["longitude"])
+        distance = haversine(friendly_lat, friendly_lon, tanker_lat, tanker_lon)
+        if distance < min_distance:
+            min_distance = distance
+            nearest = tanker
+    return nearest, min_distance
 
-    # list of dicts (like your example)
-    if isinstance(friendly, list):
-        if not friendly:
-            raise ValueError("Empty list provided for friendly asset")
-        first = friendly[0]
-        if isinstance(first, dict):
-            return _row_to_aircraft(first)
-        raise TypeError("List elements must be dicts representing assets")
 
-    # dict
-    if isinstance(friendly, dict):
-        return _row_to_aircraft(friendly)
 
-    raise TypeError("Unsupported type for friendly asset input")
-
-def _normalize_target_input(target: Union[int, str, Dict[str, Any]]) -> Target:
+def analyze_fuel(friendly, target):
     """
-    Accepts:
-      - int or str -> create a Target with that id and no coordinates (0,0)
-      - dict -> expect keys like 'latitude'/'longitude' or 'lat'/'lon'
+    Determines if an asset can reach its target and return.
+    Returns:
+        3: Can make round trip with current fuel
+        2: Cannot with current fuel, but max fuel allows it
+        1: Cannot make round trip even at max fuel
     """
-    if isinstance(target, (int, str)):
-        return Target(target_id=str(target), location=(0.0, 0.0))
 
-    if isinstance(target, dict):
-        lat = float(target.get("latitude", target.get("lat", 0)) or 0.0)
-        lon = float(target.get("longitude", target.get("lon", 0)) or 0.0)
-        target_id = str(target.get("id", target.get("target_id", target.get("track_id", "unknown"))))
-        return Target(target_id=target_id, location=(lat, lon))
+    track_id = friendly["bc3_jtn"]
+    distance = float(friendly["distance_km"])
+    lat = float(friendly["lat"])
+    long = float(friendly["lon"])
+    all_view = database.query_friendly_asset(track_id)
+    tankers = database.query_tankers()
+    
+    if all_view.empty or "fuel" not in all_view.columns or "groundspeed" not in all_view.columns:
+        return 1  # Cannot determine, assume worst case
 
-    raise TypeError("Unsupported type for target input")
 
-# ----------------------------- External Interface -----------------------------
+    current_fuel = float(all_view.loc[0, "fuel"])
+    aircraft_type = friendly["aircraft_type"].upper()
+    cruisespeed = AIRCRAFT_FUEL_DATA[aircraft_type]["cruise_speed"]
 
-def analyze_fuel(friendly: Union[str, pd.DataFrame, Dict, List],
-                 target: Union[int, str, Dict[str, Any]]) -> int:
-    """
-    Public function used by app.py.
+    if aircraft_type not in AIRCRAFT_FUEL_DATA:
+        return 1  # Unknown aircraft, assume worst case
 
-    Usage examples:
-      results_fuel = fuel.analyze_fuel(friendly, target)
+    aircraft_rate = AIRCRAFT_FUEL_DATA[aircraft_type]["consumption_rate"]
+    aircraft_max = AIRCRAFT_FUEL_DATA[aircraft_type]["max_fuel_capacity"]
 
-    friendly can be:
-      - callsign string (will call database.query_friendly_asset)
-      - DataFrame (first row used)
-      - dict describing the asset
-      - list of dicts (first element used)
+    def can_make_round_trip(F, R, D, V):
+        time_required = (2 * D) / V
+        fuel_needed = R * time_required
+        return F >= fuel_needed
+    
+    
+    nearest_tanker, distance_to_tanker = find_nearest_tanker(lat, long, tankers)
 
-    target can be:
-      - int or str (ID only)
-      - dict with 'latitude'/'longitude' (or 'lat'/'lon')
+    # print(current_fuel, aircraft_max, aircraft_rate, distance, distance_to_tanker, cruisespeed, nearest_tanker["bc3_vcs"], (distance + distance_to_tanker))
 
-    Returns mission status int: 3 (Green), 2 (Yellow), 1 (Red)
-    """
-    # Normalize inputs
-    aircraft = _normalize_friendly_input(friendly)
-    tgt = _normalize_target_input(target)
-
-    # If target has no coordinates, attempt to fetch them from DB (best-effort)
-    if tgt.location == (0.0, 0.0):
-        # If target is an ID string/number, you could try to fetch its coordinates from DB.
-        # That behavior depends on your database.schema. For now we keep (0,0) if not provided.
-        pass
-
-    return evaluate_mission(aircraft, tgt)
+    if can_make_round_trip(current_fuel, aircraft_rate, distance, cruisespeed):
+        return 3  # Can make it with current fuel
+    elif can_make_round_trip(current_fuel, aircraft_rate, distance_to_tanker, cruisespeed):
+        print("can reach tanker")
+        if can_make_round_trip(aircraft_max, aircraft_rate, (distance+distance_to_tanker), cruisespeed):
+            return 2, nearest_tanker["bc3_vcs"] # Needs refuel, but max fuel allows it, here's tanker
+    else:
+        return 1  # Cannot make round trip even at max fuel

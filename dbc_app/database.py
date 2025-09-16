@@ -29,11 +29,42 @@ red_maritime_del_drone = "red_maritime_deliverables_drone"
 red_maritime_del_s2s = "red_maritime_deliverables_surf_to_surf"
 friendly_asset = "bc3_with_all_vw"
 
+def query_tankers() -> list:
+    results = []
+    try:
+        conn = psycopg2.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PASS
+        )
+        query = """
+            SELECT * FROM bc3_with_all_vw
+            WHERE aircraft_type IN (%s, %s, %s)
+            AND bc3_jtn IS NOT NULL
+            AND bc3_jtn != '[null]';
+        """
+        params = ("KC-135", "KC-10", "KC-46")
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+            columns = [desc[0] for desc in cur.description]
+            for row in cur.fetchall():
+                results.append(dict(zip(columns, row)))
+    except Exception as e:
+        print("Error:", e)
+    finally:
+        if 'conn' in locals():
+            conn.close()
+    return results
+
+
+
 
     # Use pandas to fetch the data
-def query_friendly_asset(callsign: str) -> pd.DataFrame:
+def query_friendly_asset(bc3_jtn: str) -> pd.DataFrame:
     df_friendly_asset = pd.DataFrame()
-    print(callsign)
+    print(bc3_jtn)
     try:
         # Connect to PostgreSQL
         conn = psycopg2.connect(
@@ -45,8 +76,8 @@ def query_friendly_asset(callsign: str) -> pd.DataFrame:
         )
 
         # Use parameterized query to prevent SQL injection
-        query = f"SELECT * FROM {friendly_asset} WHERE callsign = %s;"
-        df_friendly_asset = pd.read_sql(query, conn, params=(callsign,))
+        query = f"SELECT * FROM {friendly_asset} WHERE bc3_jtn = %s;"
+        df_friendly_asset = pd.read_sql(query, conn, params=(bc3_jtn,))
         
     except Exception as e:
         print("Error:", e)
