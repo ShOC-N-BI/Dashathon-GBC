@@ -64,7 +64,6 @@ def query_tankers() -> list:
     # Use pandas to fetch the data
 def query_friendly_asset(bc3_jtn: str) -> pd.DataFrame:
     df_friendly_asset = pd.DataFrame()
-    print(bc3_jtn)
     try:
         # Connect to PostgreSQL
         conn = psycopg2.connect(
