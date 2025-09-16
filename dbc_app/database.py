@@ -28,6 +28,7 @@ red_maritime_del_a2s = "red_maritime_deliverables_air_to_surf"
 red_maritime_del_drone = "red_maritime_deliverables_drone"
 red_maritime_del_s2s = "red_maritime_deliverables_surf_to_surf"
 friendly_asset = "bc3_with_all_vw"
+entity = "pae_data"
 
 def query_tankers() -> list:
     results = []
