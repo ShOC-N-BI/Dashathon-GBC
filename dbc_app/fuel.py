@@ -235,7 +235,7 @@ def analyze_fuel(friendly, target):
     elif can_make_round_trip(current_fuel, aircraft_consumption_rate[0], distance_to_tanker, groundspeed):
         # Can make it to the tanker
         if can_make_tanker_trip(aircraft_max, aircraft_consumption_rate[0], (distance_to_target + distance + distance_to_origin), groundspeed):
-            return 2, nearest_tanker["bc3_vcs"], nearest_tanker["bc3_jtn"]  # Needs refuel, but max fuel allows it, considers new target distance
+            return 2, nearest_tanker["bc3_vcs"], nearest_tanker["bc3_jtn"], (distance_to_target + distance + distance_to_origin)  # Needs refuel, but max fuel allows it, considers new target distance
         else:
             return 1, "Cannot reach target after refuel" # Cannot make round trip even at max fuel       
     else:
