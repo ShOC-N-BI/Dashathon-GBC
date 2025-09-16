@@ -131,6 +131,10 @@ def analyze_fuel(friendly, target):
         time_required = (2 * D) / V
         fuel_needed = R * time_required
         return F >= fuel_needed
+    def can_make_tanker_trip(F, R, D, V):
+        time_required = D / V
+        fuel_needed = R * time_required
+        return F >= fuel_needed
     
     
     nearest_tanker, distance_to_tanker = find_nearest_tanker(lat, long, tankers)
@@ -140,8 +144,7 @@ def analyze_fuel(friendly, target):
     if can_make_round_trip(current_fuel, aircraft_rate, distance, cruisespeed):
         return 3  # Can make it with current fuel
     elif can_make_round_trip(current_fuel, aircraft_rate, distance_to_tanker, cruisespeed):
-        print("can reach tanker")
-        if can_make_round_trip(aircraft_max, aircraft_rate, (distance+distance_to_tanker), cruisespeed):
-            return 2, nearest_tanker["bc3_vcs"] # Needs refuel, but max fuel allows it, here's tanker
+        if can_make_tanker_trip(aircraft_max, aircraft_rate, (distance * 2) + distance_to_tanker, cruisespeed):
+            return 2, nearest_tanker["bc3_vcs"], nearest_tanker["bc3_jtn"]  # Needs refuel, but max fuel allows it, here's tanker
     else:
         return 1  # Cannot make round trip even at max fuel
