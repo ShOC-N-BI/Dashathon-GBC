@@ -30,6 +30,7 @@ red_maritime_act_s2s = "red_maritime_actionables_surf_to_surf"
 red_maritime_del_a2s = "red_maritime_deliverables_air_to_surf"
 red_maritime_del_drone = "red_maritime_deliverables_drone"
 red_maritime_del_s2s = "red_maritime_deliverables_surf_to_surf"
+bc3_with_all_vw = "bc3_with_all_vw"
 
 
 # Use pandas to fetch the data
@@ -38,7 +39,11 @@ def query_mef():
     try:
         # Connect to PostgreSQL
         conn = psycopg2.connect(
-            host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASS
+            host=DB_HOST,
+            port=DB_PORT,
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD,
         )
         query = f"SELECT * FROM {mef_data} order by timestamp desc limit 1;"
         df_mef_data = pd.read_sql(query, conn)
@@ -346,7 +351,9 @@ def query_red_maritime_del_s2s():
     # print(df_red_maritime_del_s2s.head())
 
 
-def connect_db():
+def get_groundspeed(identifier: str) -> pd.DataFrame:
+    # print(identifier)
+    groundspeed = pd.DataFrame()
     try:
         conn = psycopg2.connect(
             host=DB_HOST,
@@ -355,31 +362,12 @@ def connect_db():
             user=DB_USER,
             password=DB_PASSWORD,
         )
-        return conn
+        query = f"SELECT * FROM {bc3_with_all_vw} WHERE bc3_jtn = %s;"
+        groundspeed = pd.read_sql(query, conn, params=(identifier,))
     except Exception as e:
-        print(f"Error connecting to database: {e}")
-        return None
+        print("Error:", e)
 
-
-def fetch_json_data(conn):
-    try:
-        cursor = conn.cursor()
-        cursor.execute("SELECT actions FROM mef_data_testing;")
-        json_data = cursor.fetchall()
-        return [item[0] for item in json_data]
-    except Exception as e:
-        print(f"Error fetching JSON data: {e}")
-        return []
-
-
-def fetch_groundspeed_data(conn):
-    try:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT callsign, groundspeed FROM bc3_with_all_vw WHERE groundspeed IS NOT NULL;"
-        )
-        groundspeed_data = cursor.fetchall()
-        return {item[0]: item[1] for item in groundspeed_data}
-    except Exception as e:
-        print(f"Error fetching groundspeed data: {e}")
-        return {}
+    finally:
+        if "conn" in locals():
+            conn.close()
+    return groundspeed

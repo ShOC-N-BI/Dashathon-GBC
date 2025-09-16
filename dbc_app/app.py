@@ -21,6 +21,9 @@ import database
 # import fuel
 import time_to_target
 import json
+import warnings
+
+warnings.filterwarnings("ignore")
 
 # === Main Workflow ===
 
