@@ -16,7 +16,7 @@ Purpose:
 # === Imports ===
 import database 
 #import armament
-#import hostiles
+import hostiles
 #import fuel
 #import time_to_target  
 import json
@@ -35,13 +35,13 @@ def evaluate_aircraft(friendly, target):
     results = {}
     print(target)
     print(friendly)
-    return 
+    
     # 1. Weapon Viability
-    results_amament = armament.check_armaments(friendly, target)
+    #results_amament = armament.check_armaments(friendly, target)
 
     # 2. Hostile Threat Evaluation
     results_hostiles = hostiles.evaluate_threat(friendly, target)
-
+    return 
     # 3. Fuel Analysis
     results_fuel = fuel.analyze_fuel(friendly, target)
 
