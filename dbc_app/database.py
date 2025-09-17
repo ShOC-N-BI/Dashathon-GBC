@@ -30,6 +30,31 @@ red_maritime_del_s2s = "red_maritime_deliverables_surf_to_surf"
 friendly_asset = "bc3_with_all_vw"
 entity = "pae_data"
 
+def query_assets(column: str, filter: str) -> pd.DataFrame:
+    df_asset = pd.DataFrame()
+    try:
+        # Connect to PostgreSQL
+        conn = psycopg2.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PASS
+        )
+
+        # Use parameterized query to prevent SQL injection
+        query = f"SELECT * FROM {friendly_asset} WHERE {column} = '{filter}';"
+        df_asset = pd.read_sql(query, conn,)
+        
+    except Exception as e:
+        print("Error:", e)
+
+    finally:
+        if 'conn' in locals():
+            conn.close()
+
+    return df_asset
+
 def query_tankers() -> list:
     results = []
     try:

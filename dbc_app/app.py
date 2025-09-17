@@ -19,6 +19,7 @@ import database
 #import hostiles
 import fuel
 #import time_to_target  
+import support
 import json
 
 # === Main Workflow ===
@@ -49,7 +50,7 @@ def evaluate_aircraft(friendly, target):
     # results_time = time_to_target.compute_time(friendly, target)
 
     # 5. Supporting Assets 
-
+    results_support = support.gather_support(friendly, target, results_fuel)
 
     #6. Generate sequence 
 
@@ -57,7 +58,7 @@ def evaluate_aircraft(friendly, target):
     #7. Assess risk and Build 5-Line
      
     
-
+    print(results_support)
     return results
 
 

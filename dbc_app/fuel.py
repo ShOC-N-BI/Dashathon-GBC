@@ -230,12 +230,22 @@ def analyze_fuel(friendly, target):
     midpoint_calc = midpoint_to_tanker(nearest_tanker["latitude"], nearest_tanker["longitude"], asset_lat, asset_long)
     distance_to_target, distance_to_origin = midpoint_for_target(midpoint_calc, parse_track_info(target), asset_lat, asset_long)
 
+    def build_report(score, tanker):
+
+        return_report = {
+            "score": score,
+            "tanker_jtn": tanker["bc3_jtn"],
+            "tanker_vcs": tanker["bc3_vcs"],
+            "tanker_callsign": tanker["callsign"]
+        }
+        return return_report
+
     if can_make_round_trip(current_fuel, aircraft_consumption_rate[0], distance, groundspeed):
-        return 3  # Can make it with current fuel
+        return build_report(3, nearest_tanker)  # Can make it with current fuel
     elif can_make_round_trip(current_fuel, aircraft_consumption_rate[0], distance_to_tanker, groundspeed):
         # Can make it to the tanker
         if can_make_tanker_trip(aircraft_max, aircraft_consumption_rate[0], (distance_to_target + distance + distance_to_origin), groundspeed):
-            return 2, nearest_tanker["bc3_vcs"], nearest_tanker["bc3_jtn"], (distance_to_target + distance + distance_to_origin)  # Needs refuel, but max fuel allows it, considers new target distance
+            return build_report(2, nearest_tanker["bc3_vcs"], nearest_tanker["bc3_jtn"]) (distance_to_target + distance + distance_to_origin)  # Needs refuel, but max fuel allows it, considers new target distance
         else:
             return 1, "Cannot reach target after refuel" # Cannot make round trip even at max fuel       
     else:
