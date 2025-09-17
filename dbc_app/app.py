@@ -18,6 +18,8 @@ import database
 #import armament
 #import hostiles
 import fuel
+import hostiles
+#import fuel
 #import time_to_target  
 import json
 
@@ -43,7 +45,7 @@ def evaluate_aircraft(friendly, target):
     # results_hostiles = hostiles.evaluate_threat(friendly, target)
 
     # 3. Fuel Analysis
-    results_fuel = fuel.analyze_fuel(friendly, target)
+    #results_fuel = fuel.analyze_fuel(friendly, target)
 
     # 4. Time Analysis
     # results_time = time_to_target.compute_time(friendly, target)

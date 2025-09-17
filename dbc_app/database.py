@@ -1,6 +1,7 @@
 #establish connection to database. database functions that will pull and put into a dataframe that we can use.
 import psycopg2
 import pandas as pd
+from sqlalchemy import create_engine
 
 # Database connection settings 
 DB_HOST = "10.5.185.21"       
@@ -454,6 +455,21 @@ def query_red_maritime_del_s2s():
     return df_red_maritime_del_s2s
 
     #Show preview of data
-    # print(df_red_maritime_del_s2s.head())
+def query_bc3_with_all_vw():
+    df_bc3_with_all_vw = pd.DataFrame()
+    try:
+        # Create SQLAlchemy engine
+        engine = create_engine(
+            f"postgresql+psycopg2://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        )
+
+        query = f"SELECT * FROM {bc3_with_all_vw};"
+        df_bc3_with_all_vw = pd.read_sql(query, con=engine)
+
+    except Exception as e:
+        print("Error:", e)
+
+    return df_bc3_with_all_vw
+
 
 
