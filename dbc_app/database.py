@@ -39,15 +39,11 @@ def query_assets(column: str, filter: str) -> pd.DataFrame:
     try:
         # Connect to PostgreSQL
         conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASS
+            host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
         )
 
         # Use parameterized query to prevent SQL injection
-        query = f"SELECT * FROM {friendly_asset} WHERE {column} = '{filter}';"
+        query = f"SELECT * FROM {bc3_with_all_vw} WHERE {column} = '{filter}';"
         df_asset = pd.read_sql(query, conn,)
         
     except Exception as e:
@@ -63,11 +59,7 @@ def query_tankers() -> list:
     results = []
     try:
         conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD
+            host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
         )
         query = """
             SELECT * FROM bc3_with_all_vw
@@ -97,11 +89,7 @@ def query_friendly_asset(bc3_jtn: str) -> pd.DataFrame:
     try:
         # Connect to PostgreSQL
         conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD
+            host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
         )
 
         # Use parameterized query to prevent SQL injection
@@ -123,11 +111,7 @@ def query_mef():
     try:
         # Connect to PostgreSQL
         conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD,
+            host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
         )
         query = f"SELECT * FROM {mef_data} order by timestamp desc limit 1;"
         df_mef_data = pd.read_sql(query, conn)

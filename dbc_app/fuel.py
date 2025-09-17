@@ -192,9 +192,9 @@ def analyze_fuel(friendly, target):
     tankers = database.query_tankers()
 
     if all_view.empty or "fuel" not in all_view.columns or "groundspeed" not in all_view.columns:
-        return 1, "Unknown Fuel or Speed, check desired deliverable"  # Cannot determine, assume worst case
+        return 1, "Unknown Fuel or Speed"  # Cannot determine, assume worst case
     if all_view.loc[0, "fuel"] is None:
-        return 1, "Unknown Fuel, check desired deliverable" # Cannot determine fuel status, assume worst case
+        return 1, "Unknown Fuel" # Cannot determine fuel status, assume worst case
     
     # Aircraft Data
 # -----------------------------
@@ -238,15 +238,16 @@ def analyze_fuel(friendly, target):
             "tanker_vcs": tanker["bc3_vcs"],
             "tanker_callsign": tanker["callsign"]
         }
+        trip_check()
         return return_report
-
-    if can_make_round_trip(current_fuel, aircraft_consumption_rate[0], distance, groundspeed):
-        return build_report(3, nearest_tanker)  # Can make it with current fuel
-    elif can_make_round_trip(current_fuel, aircraft_consumption_rate[0], distance_to_tanker, groundspeed):
-        # Can make it to the tanker
-        if can_make_tanker_trip(aircraft_max, aircraft_consumption_rate[0], (distance_to_target + distance + distance_to_origin), groundspeed):
-            return build_report(2, nearest_tanker["bc3_vcs"], nearest_tanker["bc3_jtn"]) (distance_to_target + distance + distance_to_origin)  # Needs refuel, but max fuel allows it, considers new target distance
+    def trip_check():
+        if can_make_round_trip(current_fuel, aircraft_consumption_rate[0], distance, groundspeed):
+            return build_report(3, nearest_tanker)  # Can make it with current fuel
+        elif can_make_round_trip(current_fuel, aircraft_consumption_rate[0], distance_to_tanker, groundspeed):
+            # Can make it to the tanker
+            if can_make_tanker_trip(aircraft_max, aircraft_consumption_rate[0], (distance_to_target + distance + distance_to_origin), groundspeed):
+                return build_report(2, nearest_tanker["bc3_vcs"], nearest_tanker["bc3_jtn"]) (distance_to_target + distance + distance_to_origin)  # Needs refuel, but max fuel allows it, considers new target distance
+            else:
+                return 1, "Cannot reach target after refuel" # Cannot make round trip even at max fuel       
         else:
-            return 1, "Cannot reach target after refuel" # Cannot make round trip even at max fuel       
-    else:
-        return 1, "Cannot make round trip"  # Cannot make round trip even at max fuel
+            return 1, "Cannot make round trip"  # Cannot make round trip even at max fuel
