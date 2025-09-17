@@ -2,10 +2,10 @@ from geopy.distance import geodesic
 import database     
 import re
 
-bc3_all = database.query_bc3_with_all_vw()
 
-target = "44875 (CallSign: None, Track Cat: Air, Track ID: Hostile, Aircraft Type: None, Lattitude: 23.940473666159686, Longitude: -78.38917303598667)"
-friendly = {'lat': 24.24638132680745, 'lon': -77.9662517984651, 'weapon': '8XMK-84, 8XJDAM-BLU-, 8XAGM-158', 'bc3_jtn': '12257', 'callsign': 'HELENA 2', 'distance_km': 54.84259894385782, 'aircraft_type': 'B-2 SPIR', 'trackcategory': 'air', 'ea_deliverables': '-', 'matched_actions': ['attack'], 'comm_deliverables': 'UHF, Airborne Datalink, LPI Datalink, GEO MilSat, VLF', 'merged_tracknumber': 255, 'sensing_deliverables': '-'}
+
+#target = "44875 (CallSign: None, Track Cat: Air, Track ID: Hostile, Aircraft Type: None, Lattitude: 23.940473666159686, Longitude: -78.38917303598667)"
+#friendly = {'lat': 24.24638132680745, 'lon': -77.9662517984651, 'weapon': '8XMK-84, 8XJDAM-BLU-, 8XAGM-158', 'bc3_jtn': '12257', 'callsign': 'HELENA 2', 'distance_km': 54.84259894385782, 'aircraft_type': 'B-2 SPIR', 'trackcategory': 'air', 'ea_deliverables': '-', 'matched_actions': ['attack'], 'comm_deliverables': 'UHF, Airborne Datalink, LPI Datalink, GEO MilSat, VLF', 'merged_tracknumber': 255, 'sensing_deliverables': '-'}
 
 # for row in bc3_all.itertuples(index=False):
 #     distance = geodesic([50, 55], [float(row.latitude), float(row.longitude)]).km
@@ -52,10 +52,11 @@ def evaluate_threat(friendly, target):
     radius = determine_radius(friendly,hostile)
 
     def locate_hostiles(midpoint, radius):
+        bc3_all = database.query_bc3_with_all_vw()
         detected = []
         for row in bc3_all.itertuples(index=False):
             distance = geodesic(midpoint, [float(row.latitude), float(row.longitude)]).km
-            if distance < radius and row.trackid == "Hostile":
+            if distance < radius and row.trackid == "Hostiles":
                 detected.append((row.tracknumber, row.trackid, row.trackcategory ))  # append the whole row
         return detected
     
@@ -74,5 +75,5 @@ def evaluate_threat(friendly, target):
             return 0
     return determine_score(detected_hotiles), detected_hotiles
     
-score = evaluate_threat(friendly, target)
-print(score)
+# score = evaluate_threat(friendly, target)
+# print(score)
