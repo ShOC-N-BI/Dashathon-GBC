@@ -1,235 +1,355 @@
-# match_weapons.py
-# - Uses parsing.py to flatten actions and compute domain (ACTION -> ENTITY)
-# - Normalizes weapons and matches against the right deliverables table
-# - Matching prefers base-code (e.g., GBU-53, GBU-38, AGM-114, AIM-9), with substring fallback
 
 from __future__ import annotations
 
 import re
 import json
+from typing import Iterable, Dict, Any, List, Tuple, Optional
 import pandas as pd
-import psycopg2
-from psycopg2 import sql
 
-import database           # your DB creds + table names live here
-import parsing as P       # we import helpers from parsing.py
+import database  
 
-DB = dict(
-    host=database.DB_HOST,
-    port=database.DB_PORT,
-    dbname=database.DB_NAME,
-    user=database.DB_USER,
-    password=database.DB_PASS,
-)
+# ----------------------------- Classifiers -----------------------------
+def _norm_text(s: Optional[str]) -> str:
+    return (s or "").strip().lower()
 
-# --------------------------------------------------------------------------------------
-# Weapon normalization (re-use from parsing.py if you already expose them there)
-# --------------------------------------------------------------------------------------
-
-# Expect these in parsing.py. If you haven't exported them, either move them there or keep here.
-normalize_name = getattr(P, "normalize_name", None)
-tokenize_weapons = getattr(P, "tokenize_weapons", None)
-
-if normalize_name is None:
-    def normalize_name(s: str) -> str:
-        if not isinstance(s, str):
-            return ""
-        s = s.strip()
-        s = re.sub(r"\s+", " ", s)
-        return s.upper()
-
-if tokenize_weapons is None:
-    _SPLIT = re.compile(r"[;,/]+")
-    _PFX = re.compile(r"^\s*\d+\s*[xX]\s*")
-    def tokenize_weapons(w: str | None) -> list[str]:
-        if not isinstance(w, str) or not w.strip():
-            return []
-        return [_PFX.sub("", t).strip() for t in _SPLIT.split(w) if t.strip()]
-
-def ensure_weapon_list(df: pd.DataFrame) -> pd.DataFrame:
-    """Ensure df has weapon_list and weapon_clean columns."""
-    if "weapon_list" not in df.columns:
-        df["weapon_list"] = df["weapon"].apply(tokenize_weapons)
-    if "weapon_clean" not in df.columns:
-        df["weapon_clean"] = df["weapon_list"].apply(lambda xs: ", ".join(xs))
-    return df
-
-# --------------------------------------------------------------------------------------
-# Base-code extraction (GBU-53, GBU-38, AGM-114, AIM-120, etc.)
-# --------------------------------------------------------------------------------------
-
-# Examples that become base codes:
-#   "GBU-53 SD"  -> GBU-53
-#   "GBU38 JDA"  -> GBU-38
-#   "AGM-114N"   -> AGM-114
-#   "AIM-120C-7" -> AIM-120
-#   "GBU-53/B"   -> GBU-53
-_BASE_RE = re.compile(r'([A-Z]{2,4})[-\s]?(\d{2,3})')
-
-def to_base_code(text: str | None) -> str | None:
-    """Return the first base code like 'GBU-53' from a token; else None."""
-    if not isinstance(text, str) or not text.strip():
+def classify_side_from_trackcat(raw: Optional[str]) -> Optional[str]:
+    """Return one of: 'air', 'land', 'surface' (or None if unknown)."""
+    c = _norm_text(raw)
+    if not c:
         return None
-    s = normalize_name(text).replace('/', '-')    # treat slash as hyphen
-    m = _BASE_RE.search(s)
-    return f"{m.group(1)}-{m.group(2)}" if m else None
+    if "air" in c:
+        return "air"
+    if "land" in c or "ground" in c:
+        return "land"
+    if "surface" in c or "surf" in c or "sea" in c or "marit" in c or "naval" in c:
+        return "surface"
+    return None
 
-def all_base_codes(text: str | None) -> set[str]:
-    """Return all base codes present in a deliverable name string."""
-    if not isinstance(text, str) or not text.strip():
-        return set()
-    s = normalize_name(text).replace('/', '-')
-    return {f"{pfx}-{num}" for (pfx, num) in _BASE_RE.findall(s)}
+_ENEMY_TRACKCAT_RE = re.compile(r"(?i)\btrack\s*cat\s*:\s*([A-Za-z]+)")
 
-# --------------------------------------------------------------------------------------
-# Deliverables loading / indexing
-# --------------------------------------------------------------------------------------
+def classify_enemy_side_from_text(enemy_str: str) -> Optional[str]:
+    """Supports string inputs like '(... Track Cat: Surface ...)'."""
+    m = _ENEMY_TRACKCAT_RE.search(enemy_str or "")
+    return classify_side_from_trackcat(m.group(1) if m else None)
 
-def load_deliverable_index(conn, table_name: str) -> dict:
+# dict-/list-/string-safe enemy classifier
+def _extract_trackcat_from_dict(d: dict) -> Optional[str]:
+    for k, v in d.items():
+        key = k.replace(" ", "").replace("_", "").lower()
+        if key in {"trackcat", "trackcategory", "trackcategoryenemy", "entitytrackcategory"} and isinstance(v, str):
+            return v
+        if isinstance(v, dict):
+            sub = _extract_trackcat_from_dict(v)
+            if sub:
+                return sub
+    for k, v in d.items():
+        if isinstance(k, str) and "track" in k.lower() and "cat" in k.lower() and isinstance(v, str):
+            return v
+    return None
+
+def classify_enemy_side(enemy_data: Any) -> Optional[str]:
     """
-    Build a per-table index:
-      base_index:  dict[base_code] -> list[orig_name]
-      names_norm:  list[(norm_name, orig_name)]  # for substring fallback
+    Accepts string, dict, or a list/tuple containing either.
     """
-    q = sql.SQL('SELECT "name" FROM {tbl} WHERE "name" IS NOT NULL;').format(
-        tbl=P.qident(table_name)
-    )
-    df = pd.read_sql_query(q.as_string(conn), conn)
-    names = df["name"].dropna().astype(str).tolist()
+    if isinstance(enemy_data, dict):
+        return classify_side_from_trackcat(_extract_trackcat_from_dict(enemy_data))
+    if isinstance(enemy_data, (list, tuple)):
+        for item in enemy_data:
+            side = classify_enemy_side(item)
+            if side:
+                return side
+        return None
+    if isinstance(enemy_data, str):
+        return classify_enemy_side_from_text(enemy_data)
+    return None
 
-    # Build base-code index
-    base_index: dict[str, list[str]] = {}
-    for x in names:
-        for b in all_base_codes(x):
-            base_index.setdefault(b, []).append(x)
+def classify_friendly_side(asset: Dict[str, Any]) -> Optional[str]:
+    # Prefer explicit trackcategory
+    t = asset.get("trackcategory")
+    if isinstance(t, str):
+        k = classify_side_from_trackcat(t)
+        if k:
+            return k
+    # Heuristic: aircraft_type implies 'air'
+    if asset.get("aircraft_type"):
+        return "air"
+    return None
 
-    # Normalized names for substring fallback
-    names_norm = [(normalize_name(x), x) for x in names]
 
-    return {"base_index": base_index, "names_norm": names_norm}
+# ----------------------------- Input normalization (friendlies only) -----------------------------
+def _ensure_friendly_list(friendly_assets: Any) -> List[Dict[str, Any]]:
+    """
+    Normalize friendly_assets into a list of dicts.
+    Accepts: dict, list[dict|str|json], json-string, bare ID string.
+    """
+    if friendly_assets is None:
+        return []
 
-# --------------------------------------------------------------------------------------
-# Deliverables table selection
-#   - Domain is ACTION → ENTITY (as provided by parsing.extract_actions_with_domain)
-#   - Lookup key is (entity_family, domain)
-#   - entity_family ∈ {'air','ground','maritime'}, with 'land' → 'ground'
-# --------------------------------------------------------------------------------------
+    if isinstance(friendly_assets, dict):
+        return [friendly_assets]
 
-TABLE_FOR: dict[tuple[str, str], str] = {
-    ("air",      "surf_to_air"):  database.red_air_del_s2a,
-    ("air",      "air_to_air"):   database.red_air_del_a2a,
+    if isinstance(friendly_assets, str):
+        s = friendly_assets.strip()
+        if s.startswith("{") or s.startswith("["):
+            try:
+                obj = json.loads(s)
+                if isinstance(obj, dict):
+                    return [obj]
+                if isinstance(obj, list):
+                    return [x for x in obj if isinstance(x, dict)]
+            except Exception:
+                pass
+        return [{"id": s}]
 
-    ("ground",   "air_to_surf"):  database.red_ground_del_a2s,
-    ("ground",   "surf_to_surf"): database.red_ground_del_s2s,
+    if isinstance(friendly_assets, (list, tuple)):
+        out: List[Dict[str, Any]] = []
+        for item in friendly_assets:
+            if isinstance(item, dict):
+                out.append(item)
+            elif isinstance(item, str):
+                s = item.strip()
+                if s.startswith("{") or s.startswith("["):
+                    try:
+                        obj = json.loads(s)
+                        if isinstance(obj, dict):
+                            out.append(obj)
+                        elif isinstance(obj, list):
+                            out.extend([x for x in obj if isinstance(x, dict)])
+                        else:
+                            out.append({"id": s})
+                    except Exception:
+                        out.append({"id": s})
+                else:
+                    out.append({"id": s})
+        return out
 
-    ("maritime", "surf_to_surf"): database.red_maritine_del_s2s,
-    ("maritime", "air_to_surf"):  database.red_maritine_del_a2s,
+    return []
+
+
+# ----------------------------- Deliverables query routing -----------------------------
+# (friendly_side, enemy_side)
+_QUERY_MAP = {
+    ("air", "air"):        database.query_red_air_del_a2a,
+    ("air", "land"):       database.query_red_ground_del_a2s,
+    ("air", "surface"):    database.query_red_maritime_del_a2s,  # air→surface (maritime)
+    ("surface", "air"):    database.query_red_air_del_s2a,       # surface→air
+    ("land", "surface"):   database.query_red_maritime_del_s2s,  # per your rule
+    ("ground", "surface"): database.query_red_maritime_del_s2s,  # alias
 }
 
-# --------------------------------------------------------------------------------------
-# Matching
-# --------------------------------------------------------------------------------------
+def fetch_deliverables_df(friendly_side: str, enemy_side: str) -> pd.DataFrame:
+    key = (friendly_side, enemy_side)
+    func = _QUERY_MAP.get(key)
+    if not func:
+        raise ValueError(
+            f"No deliverables mapping for friendly='{friendly_side}' vs enemy='{enemy_side}'. "
+            f"Known keys: {list(_QUERY_MAP.keys())}"
+        )
+    df = func()
+    return _ensure_base_codes(_ensure_string_deliverable_col(df))
 
-def find_weapon_matches(conn, df_actions: pd.DataFrame) -> pd.DataFrame:
-    df = ensure_weapon_list(df_actions.copy())
 
-    # preload indices (unchanged) ...
-    dl_index: dict[str, dict] = {}
-    for tbl in sorted(set(TABLE_FOR.values())):
-        try:
-            dl_index[tbl] = load_deliverable_index(conn, tbl)
-        except Exception as e:
-            print(f"Note: could not load {tbl}: {e}")
-            dl_index[tbl] = {"base_index": {}, "names_norm": []}
+# ----------------------------- Weapon parsing -----------------------------
+_SPLIT = re.compile(r"[;,/]+")
+_QTY_RE = re.compile(r"^\s*(\d+)\s*[xX]\s*(.+?)\s*$")
+_BASE_RE = re.compile(r"([A-Z]{2,4})[-\s]?(\d{2,3})")
 
-    matched_table, matched_weapons, matched_deliverables, has_match = [], [], [], []
+def _normalize_name(s: str) -> str:
+    return re.sub(r"\s+", " ", (s or "").strip()).upper().replace("/", "-")
 
-    for _, row in df.iterrows():
-        ent_family = row.get("entity_family")
-        domain = row.get("domain")
-        tbl = TABLE_FOR.get((ent_family, domain))
-
-        if not tbl:
-            matched_table.append(None)
-            matched_weapons.append([])
-            matched_deliverables.append([])
-            has_match.append(False)
+def parse_weapons_field(weapon_field: Optional[str]) -> List[Dict[str, Any]]:
+    """
+    "2XAIM-9, 4XAIM-120, 4XGBU-53 SD" → [
+        {"qty": 2, "name": "AIM-9", "name_norm": "AIM-9", "base_code": "AIM-9"},
+        {"qty": 4, "name": "AIM-120", "name_norm": "AIM-120", "base_code": "AIM-120"},
+        {"qty": 4, "name": "GBU-53 SD", "name_norm": "GBU-53 SD", "base_code": "GBU-53"},
+    ]
+    """
+    if not isinstance(weapon_field, str) or not weapon_field.strip():
+        return []
+    results: List[Dict[str, Any]] = []
+    for raw in _SPLIT.split(weapon_field):
+        token = raw.strip()
+        if not token:
             continue
+        qty = 1
+        name = token
+        m = _QTY_RE.match(token)
+        if m:
+            qty = int(m.group(1))
+            name = m.group(2).strip()
 
-        idx = dl_index.get(tbl, {"base_index": {}, "names_norm": []})
-        base_index: dict[str, list[str]] = idx["base_index"]
-        names_norm: list[tuple[str, str]] = idx["names_norm"]
+        name_norm = _normalize_name(name)
+        base = None
+        mb = _BASE_RE.search(name_norm)
+        if mb:
+            base = f"{mb.group(1)}-{mb.group(2)}"
+        results.append({"qty": qty, "name": name.strip(), "name_norm": name_norm, "base_code": base})
+    return results
 
-        tokens = row.get("weapon_list") or []
-        token_hits: list[str] = []
-        deliverable_hits: list[str] = []
 
-        for tok in tokens:
-            tok_norm = normalize_name(tok)
-            tok_base = to_base_code(tok)
-            hit_this_token = False
+# ----------------------------- Deliverables introspection -----------------------------
+def _first_string_col(df: pd.DataFrame) -> Optional[str]:
+    for c in df.columns:
+        if pd.api.types.is_string_dtype(df[c]):
+            return c
+    return None
 
-            if tok_base and tok_base in base_index:
-                token_hits.append(tok)
-                deliverable_hits.extend(base_index[tok_base])
-                hit_this_token = True
+def _deliverable_text_col(df: pd.DataFrame) -> Optional[str]:
+    for c in ("weapon", "deliverable", "name", "munitions", "title"):
+        if c in df.columns:
+            return c
+    return _first_string_col(df)
 
-            if not hit_this_token and tok_norm:
-                subs = [orig for dn_norm, orig in names_norm if tok_norm in dn_norm]
-                if subs:
-                    token_hits.append(tok)
-                    deliverable_hits.extend(subs)
+def _ensure_string_deliverable_col(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame(columns=["deliverable_raw", "base_codes"])
+    col = _deliverable_text_col(df)
+    if not col:
+        return pd.DataFrame(columns=["deliverable_raw", "base_codes"])
+    out = df.copy()
+    if "deliverable_raw" not in out.columns:
+        out = out.rename(columns={col: "deliverable_raw"})
+    return out
 
-        # de-dup deliverables
-        seen = set()
-        deliverable_hits = [d for d in deliverable_hits if not (d in seen or seen.add(d))]
+def _all_base_codes(text: Optional[str]) -> set[str]:
+    if not isinstance(text, str) or not text.strip():
+        return set()
+    s = _normalize_name(text)
+    return {f"{p}-{n}" for (p, n) in _BASE_RE.findall(s)}
 
-        matched_table.append(tbl)
-        matched_weapons.append(token_hits)
-        matched_deliverables.append(deliverable_hits)
-        has_match.append(bool(token_hits))
-
-    # ✅ assign lists with the same length as df
-    df["matched_table"] = matched_table
-    df["matched_weapons"] = matched_weapons
-    df["matched_deliverables"] = matched_deliverables
-    df["has_match"] = has_match
-
-    # (optional sanity checks)
-    assert len(matched_table) == len(df) == len(matched_weapons) == len(matched_deliverables) == len(has_match)
-
+def _ensure_base_codes(df: pd.DataFrame) -> pd.DataFrame:
+    if "base_codes" not in df.columns:
+        df = df.copy()
+        df["base_codes"] = df["deliverable_raw"].apply(_all_base_codes)
     return df
 
-# --------------------------------------------------------------------------------------
-# Orchestrator
-# --------------------------------------------------------------------------------------
+CANDIDATES = {
+    "effectiveness": [ "effectiveness_percentage"],
+    "range":        ["range", "range_nm" ],
+    "alt_low":      ["alt_low_kft", "min_alt", "min_alt_ft", "altitude_min", "alt_min", "alt(kts)", "employment_alt_kft", "employment_alt_low_kft"],
+    "alt_high":     ["alt_high_kft", "max_alt", "max_alt_ft", "altitude_max", "alt_max", "alt(kts)", "employment_alt_kft", "employment_alt_high_kft"],
+    "speed":        ["speed","speed_kts", "speed(kts)"],
+    "dependencies": ["dependencies"],
+}
 
-def run() -> pd.DataFrame:
+def _pick_col(df: pd.DataFrame, names: Iterable[str]) -> Optional[str]:
+    for n in names:
+        if n in df.columns:
+            return n
+    return None
+
+
+# ----------------------------- Matching -----------------------------
+def _match_single_weapon(weap: Dict[str, Any], cat_df: pd.DataFrame) -> Optional[pd.Series]:
+    """Match by base code first; fallback to substring."""
+    if cat_df is None or cat_df.empty:
+        return None
+
+    base = weap.get("base_code")
+    if base:
+        hits = cat_df[cat_df["base_codes"].apply(lambda s: base in s if isinstance(s, set) else False)]
+        if not hits.empty:
+            return hits.iloc[0]
+
+    nameN = weap.get("name_norm") or ""
+    if len(nameN) >= 3:
+        def _has_sub(txt: Any) -> bool:
+            return isinstance(txt, str) and (nameN in _normalize_name(txt))
+        hits = cat_df[cat_df["deliverable_raw"].apply(_has_sub)]
+        if not hits.empty:
+            return hits.iloc[0]
+
+    return None
+
+
+# ----------------------------- Execution -----------------------------
+def check_armaments(friendly_assets: Any, enemy_data: Any) -> pd.DataFrame:
     """
-    End-to-end:
-      1) Use parsing.extract_actions_with_domain to get a tidy actions DF with:
-         - entity_family ∈ {'air','ground','maritime'}
-         - domain ∈ {'air_to_air','air_to_surf','surf_to_air','surf_to_surf'}  (ACTION → ENTITY)
-         - weapon (raw string)
-      2) Match weapons against the selected deliverables table
+
+    Output:
+      df_arm_results with columns:
+        ['friendly_id','weapon','weapon_base_code','qty',
+         'effectiveness','range','alt_low','alt_high','speed','dependencies']
     """
-    with psycopg2.connect(**DB) as conn:
-        # parsing.extract_actions_with_domain MUST return the new action→entity domain
-        actions = P.extract_actions_with_domain(conn, database.mef_data)
+    # Normalize friendlies
+    friendly_list = _ensure_friendly_list(friendly_assets)
 
-        # Keep only rows with resolvable family+domain
-        actions = actions[actions["entity_family"].notna() & actions["domain"].notna()].copy()
+    # Classify enemy side from any input shape
+    enemy_side = classify_enemy_side(enemy_data)
+    if not enemy_side:
+        raise ValueError(f"Could not determine enemy side from: {enemy_data!r}")
 
-        checked = find_weapon_matches(conn, actions)
-    return checked
+    rows: List[Dict[str, Any]] = []
+    cache: Dict[Tuple[str, str], pd.DataFrame] = {}
 
+    for asset in friendly_list:
+        if not isinstance(asset, dict):
+            continue  # safety
+
+        fid =  asset.get("callsign")
+        fside = classify_friendly_side(asset)
+        if not fside:
+            continue
+
+        key = (fside, enemy_side)
+        if key not in cache:
+            cache[key] = fetch_deliverables_df(fside, enemy_side)
+
+        cat_df = cache[key]
+        weapons = parse_weapons_field(asset.get("weapon"))
+        if not weapons:
+            continue
+
+        eff_col = _pick_col(cat_df, CANDIDATES["effectiveness"])
+        rng_col = _pick_col(cat_df, CANDIDATES["range"])
+        lo_col  = _pick_col(cat_df, CANDIDATES["alt_low"])
+        hi_col  = _pick_col(cat_df, CANDIDATES["alt_high"])
+        spd_col = _pick_col(cat_df, CANDIDATES["speed"])
+        dep_col = _pick_col(cat_df, CANDIDATES["dependencies"])
+
+        for w in weapons:
+            match = _match_single_weapon(w, cat_df)
+            if match is None:
+                continue
+
+            rows.append({
+                "friendly_id": fid,
+                "weapon": w["name"],
+                "weapon_base_code": w.get("base_code"),
+                "qty": w["qty"],
+                "effectiveness": (match.get(eff_col) if eff_col else None),
+                "range": (match.get(rng_col) if rng_col else None),
+                "alt_low": (match.get(lo_col) if lo_col else None),
+                "alt_high": (match.get(hi_col) if hi_col else None),
+                "speed": (match.get(spd_col) if spd_col else None),
+                "dependencies": (match.get(dep_col) if dep_col else None),
+            })
+
+    df_arm_results = pd.DataFrame(rows, columns=[
+        "friendly_id","weapon","weapon_base_code","qty",
+        "effectiveness","range","alt_low","alt_high","speed","dependencies"
+    ])
+    return df_arm_results
+
+
+# ----------------------------- Example -----------------------------
 if __name__ == "__main__":
-    out = run()
-    cols = [
-        "entity", "timestamp",
-        "trackcategory_entity", "trackcategory", "action_kind",
-        "entity_family", "domain", "domain_display",
-        "weapon", "weapon_clean",
-        "matched_table", "matched_weapons", "matched_deliverables", "has_match",
-    ]
-    print(out[[c for c in cols if c in out.columns]].head(25).to_string(index=False))
+    enemy = {
+        "id": 43826,
+        "CallSign": None,
+        "Track Cat": "Surface",
+        "Track ID": "Hostile",
+        "Aircraft Type": None
+    }
+
+    friendly_assets = [{
+        "id": "HARPY 02",
+        "weapon": "2XAIM-9, 4XAIM-120, 4XGBU-53 SD",
+        "aircraft_type": "F-A-22",
+        "trackcategory": "air"
+    }]
+
+    df = check_armaments(friendly_assets, enemy)
+    with pd.option_context("display.max_columns", None, "display.width", 160):
+        print(df.head(20))
