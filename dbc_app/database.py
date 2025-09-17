@@ -1,6 +1,7 @@
 #establish connection to database. database functions that will pull and put into a dataframe that we can use.
 import psycopg2
 import pandas as pd
+from sqlalchemy import create_engine
 
 # Database connection settings 
 DB_HOST = "10.5.185.21"       
@@ -28,7 +29,6 @@ red_maritime_del_a2s = "red_maritime_deliverables_air_to_surf"
 red_maritime_del_drone = "red_maritime_deliverables_drone"
 red_maritime_del_s2s = "red_maritime_deliverables_surf_to_surf"
 bc3_with_all_vw = "bc3_with_all_vw"
-mef_data_testing = "mef_data_testing"
 
     # Use pandas to fetch the data
 def query_mef(): 
@@ -399,45 +399,18 @@ def query_red_maritime_del_s2s():
 def query_bc3_with_all_vw():
     df_bc3_with_all_vw = pd.DataFrame()
     try:
-    # Connect to PostgreSQL
-        conn = psycopg2.connect(
-        host=DB_HOST,
-        port=DB_PORT,
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASS
-    )
+        # Create SQLAlchemy engine
+        engine = create_engine(
+            f"postgresql+psycopg2://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        )
+
         query = f"SELECT * FROM {bc3_with_all_vw};"
-        df_bc3_with_all_vw = pd.read_sql(query, conn)
+        df_bc3_with_all_vw = pd.read_sql(query, con=engine)
+
     except Exception as e:
         print("Error:", e)
 
-    finally:
-        if 'conn' in locals():
-            conn.close()       
     return df_bc3_with_all_vw
 
-def query_mef_data_testing():
-    df_mef_data_testing = pd.DataFrame()
-    try:
-    # Connect to PostgreSQL
-        conn = psycopg2.connect(
-        host=DB_HOST,
-        port=DB_PORT,
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASS
-    )
-        query = f"SELECT * FROM {mef_data_testing};"
-        df_mef_data_testing = pd.read_sql(query, conn)
-    except Exception as e:
-        print("Error:", e)
-
-    finally:
-        if 'conn' in locals():
-            conn.close()       
-    return df_mef_data_testing
-
-    # print(df_red_maritime_del_s2s.head())
 
 

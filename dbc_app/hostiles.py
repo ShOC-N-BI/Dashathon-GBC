@@ -1,32 +1,22 @@
-import pandas as pd
-import geopy.distance
+from geopy.distance import geodesic
 import database     
 import re
+
 bc3_all = database.query_bc3_with_all_vw()
-# print(bc3_all.head())
 
-mef_data = database.query_mef_data_testing()
-# print(mef_data["entity"])
-# print(mef_data["actions"][0][0]["lon"])
+target = "44875 (CallSign: None, Track Cat: Air, Track ID: Hostile, Aircraft Type: None, Lattitude: 23.940473666159686, Longitude: -78.38917303598667)"
+friendly = {'lat': 24.24638132680745, 'lon': -77.9662517984651, 'weapon': '8XMK-84, 8XJDAM-BLU-, 8XAGM-158', 'bc3_jtn': '12257', 'callsign': 'HELENA 2', 'distance_km': 54.84259894385782, 'aircraft_type': 'B-2 SPIR', 'trackcategory': 'air', 'ea_deliverables': '-', 'matched_actions': ['attack'], 'comm_deliverables': 'UHF, Airborne Datalink, LPI Datalink, GEO MilSat, VLF', 'merged_tracknumber': 255, 'sensing_deliverables': '-'}
 
+# for row in bc3_all.itertuples(index=False):
+#     distance = geodesic([50, 55], [float(row.latitude), float(row.longitude)]).km
+#     if distance < 6000 and row.entitytrackid == "hostile":
+#         detected.append(row)  # append the whole row
 
-# entity_data = expand_track_data(mef_data, "entity")
-
-# print(entity_data["ID"])
-
-# asset_coord = [52, 53]
-# hostile_coord = [60, 57]
-
-# hostiles = [
-#     {"name": "zulu", "lat": 54, "lon": 56, "entity": "hostile"},
-#     {"name": "hawk", "lat": 54, "lon": 56, "entity": "hostile"},
-#     {"name": "mako", "lat": 56, "lon": 58, "entity": "hostile"}
-# ]
 def evaluate_threat(friendly, target):
     
     friendly = friendly
     target = target
-
+    
     def parse_track_info(track_string):
         # Regex to capture the main ID and all key-value pairs inside parentheses
         match = re.match(r"(\d+)\s*\((.*)\)", track_string)
@@ -50,26 +40,26 @@ def evaluate_threat(friendly, target):
     
     def compute_midPoint(friendly, target):  
         return [
-            (friendly["lat"] + target["latitude"]) / 2,
-            (friendly["lon"] + target["longitude"]) / 2
+            (float(friendly["lat"]) + float(target["Lattitude"])) / 2,
+            (float(friendly["lon"]) + float(target["Longitude"])) / 2
         ]
     
     midpoint = compute_midPoint(friendly,hostile)
     
     def determine_radius(friendly,target ):
-        return geopy.distance.geodesic([friendly["lat"],friendly["lon"]], [target["latitude"], target["longitude"]]).km / 2
+        return geodesic([friendly["lat"],friendly["lon"]], [target["Lattitude"], target["Longitude"]]).km / 2
     
     radius = determine_radius(friendly,hostile)
 
-    def locate_hostiles(midpoint_coords, coords, radius):
+    def locate_hostiles(midpoint, radius):
         detected = []
-        for h in coords:
-            distance = geopy.distance.geodesic(midpoint_coords, [h["latatitude"], h["longitude"]]).km
-            if distance < radius and h["entitytrackid"] == "hostile":   
-                detected.append(h)
+        for row in bc3_all.itertuples(index=False):
+            distance = geodesic(midpoint, [float(row.latitude), float(row.longitude)]).km
+            if distance > radius and row.trackid == "Pending":
+                detected.append((row.tracknumber, row.trackid, row.trackcategory ))  # append the whole row
         return detected
     
-    detected_hotiles = locate_hostiles(midpoint, bc3_all, radius)
+    detected_hotiles = locate_hostiles(midpoint, radius)
 
     def determine_score(list):
         if len(list) == 0:
@@ -80,6 +70,9 @@ def evaluate_threat(friendly, target):
             return 2
         if len(list) == 3:
             return 1
+        if len(list) > 3:
+            return 0
+    return determine_score(detected_hotiles), detected_hotiles
     
-    return determine_score(detected_hotiles)
-
+score = evaluate_threat(friendly, target)
+print(score)
