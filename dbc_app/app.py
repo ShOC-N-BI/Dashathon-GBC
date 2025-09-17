@@ -64,7 +64,7 @@ def evaluate_aircraft(friendly, target, message, timestamp):
 
     # 5. Supporting Assets 
     # values - 2 = yes support [values follow ], 1 = no support
-    results_support = None #support.gather_support(friendly, target, result_hostiles)
+    results_support = None #support.gather_support(friendly, target, result_amament, result_hostiles)
 
     #6. Generate sequence 
     results_sequence = sequence.make_timeline(friendly, target, results_amament, results_hostiles, results_fuel, results_time, results_support, timestamp)
