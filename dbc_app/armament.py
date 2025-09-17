@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import re
 import json
 from typing import Iterable, Dict, Any, List, Tuple, Optional
@@ -452,7 +451,7 @@ def _reduce_matches_by_friendly(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ----------------------------- Execution -----------------------------
-from typing import Tuple
+
 
 def check_armaments(friendly_assets: Any, enemy_data: Any) -> Tuple[int, pd.DataFrame]:
     """
@@ -470,7 +469,6 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> Tuple[int, pd.Data
 
     # Classify enemy side
     enemy_side = classify_enemy_side(enemy_data)
-
     rows: List[Dict[str, Any]] = []
     cache: Dict[Tuple[str, str], pd.DataFrame] = {}
 
