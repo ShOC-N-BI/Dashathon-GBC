@@ -48,11 +48,16 @@ def evaluate_aircraft(friendly, target):
     # 4. Time Analysis
     # results_time = time_to_target.compute_time(friendly, target)
 
-    # calculate results 
-    #
-    # 
-    #
-    print(results_fuel)
+    # 5. Supporting Assets 
+
+
+    #6. Generate sequence 
+
+
+    #7. Assess risk and Build 5-Line
+     
+    
+
     return results
 
 
