@@ -4,7 +4,8 @@ import json
 from typing import Iterable, Dict, Any, List, Tuple, Optional
 import pandas as pd
 
-import database  
+import database  # your DB creds + table names live here
+import parsing as P  # we import helpers from parsing.py
 
 # ----------------------------- Classifiers -----------------------------
 def _norm_text(s: Optional[str]) -> str:
@@ -146,6 +147,9 @@ def fetch_deliverables_df(friendly_side: str, enemy_side: str) -> pd.DataFrame:
     df = func()
     return _ensure_base_codes(_ensure_string_deliverable_col(df))
 
+
+def find_weapon_matches(conn, df_actions: pd.DataFrame) -> pd.DataFrame:
+    df = ensure_weapon_list(df_actions.copy())
 
 # ----------------------------- Weapon parsing -----------------------------
 _SPLIT = re.compile(r"[;,/]+")

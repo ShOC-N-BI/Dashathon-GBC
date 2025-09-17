@@ -15,43 +15,65 @@ Purpose:
 
 # === Imports ===
 import database 
-#import armament
-#import hostiles
-#import fuel
-#import time_to_target  
+import fiveline
+import armament
+import sequence
+import hostiles
+import fuel
+import time_to_target  
+import database
 import json
+import warnings
+
+warnings.filterwarnings("ignore")
 
 # === Main Workflow ===
+
 
 def get_friendly_aircraft():
     return 0
 
 
-def evaluate_aircraft(friendly, target):
+def evaluate_aircraft(friendly, target, message, timestamp):
     """
     Given a single friendly aircraft and a target aircraft,
     run through all evaluation modules and return results.
     """
     results = {}
-    print(target)
-    print(friendly)
-    return 
+
+    # print(target)
+    # print(friendly)
+
     # 1. Weapon Viability
-    results_amament = armament.check_armaments(friendly, target)
+    # values - 4 valid weapon pair, 3 asset weapon not 90% effective, 2 asset weapon no options, 1 missing asset or target domain
+    results_amament = None # armament.check_armaments(friendly, target)
 
     # 2. Hostile Threat Evaluation
+    # values - 4 = no hostiles, 3 and below = yes hostiles [details follow]
     results_hostiles = hostiles.evaluate_threat(friendly, target)
+    print(f'hostiles: {results_hostiles}')
 
     # 3. Fuel Analysis
+    # values - 3 = no refuel needed, 2 = refuel needed [details follow], 1 = undetermined [details follow]
     results_fuel = fuel.analyze_fuel(friendly, target)
+    print(f'fueld: {results_fuel}')
 
     # 4. Time Analysis
+    # values - in minutes
     results_time = time_to_target.compute_time(friendly, target)
+    print(f'time: {results_time}')
 
-    # calculate results 
-    #
-    # 
-    #
+    # 5. Supporting Assets 
+    # values - 2 = yes support [values follow ], 1 = no support
+    results_support = None #support.gather_support(friendly, target, results_amament, result_hostiles)
+
+    #6. Generate sequence 
+    results_sequence = sequence.make_timeline(friendly, target, results_amament, results_hostiles, results_fuel, results_time, results_support, timestamp)
+
+    #7. Assess risk and Build 5-Line
+     
+    results = fiveline.generate(results_amament, results_hostiles, results_fuel, results_time, results_support, results_sequence, message)
+
     return results
 
 
@@ -64,20 +86,19 @@ def main():
     """
     # Step 1: Get Data
     current_MEF = database.query_mef()
-    friendly_aircraft_list = current_MEF['actions'].iloc[0]  # Expect list of 3 aircraft
-    #friendly_aircraft_list = json.loads(friendly_aircraft_list)
-    #print(type(friendly_aircraft_list))
-    #print(friendly_aircraft_list[0].keys())
-    target_aircraft = current_MEF['entity'].iloc[0]          # Expect single hostile aircraft
+    friendly_aircraft_list = current_MEF["actions"].iloc[0]  # Expect list of 3 aircraft
+    # friendly_aircraft_list = json.loads(friendly_aircraft_list)
+    # print(type(friendly_aircraft_list))
+    # print(friendly_aircraft_list[0].keys())
+    target_aircraft = current_MEF["entity"].iloc[0]  # Expect single hostile aircraft
+    target_message = current_MEF["message"].iloc[0]
+    target_time = current_MEF["timestamp"].iloc[0]
 
-     
-
-    
     # Step 2: Run evaluations
     all_results = {}
     for idx, friendly in enumerate(friendly_aircraft_list, start=1):
         print(f"\n=== Evaluating Friendly Aircraft {idx} ===")
-        evaluation = evaluate_aircraft(friendly, target_aircraft)
+        evaluation = evaluate_aircraft(friendly, target_aircraft, target_message, target_time)
         all_results[f"Aircraft_{idx}"] = evaluation
 
     return
