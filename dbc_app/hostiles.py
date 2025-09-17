@@ -55,7 +55,7 @@ def evaluate_threat(friendly, target):
         detected = []
         for row in bc3_all.itertuples(index=False):
             distance = geodesic(midpoint, [float(row.latitude), float(row.longitude)]).km
-            if distance > radius and row.trackid == "Pending":
+            if distance < radius and row.trackid == "Hostile":
                 detected.append((row.tracknumber, row.trackid, row.trackcategory ))  # append the whole row
         return detected
     
