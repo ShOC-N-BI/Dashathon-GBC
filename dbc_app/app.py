@@ -33,7 +33,7 @@ def get_friendly_aircraft():
     return 0
 
 
-def evaluate_aircraft(friendly, target, message):
+def evaluate_aircraft(friendly, target, message, timestamp):
     """
     Given a single friendly aircraft and a target aircraft,
     run through all evaluation modules and return results.
@@ -44,7 +44,7 @@ def evaluate_aircraft(friendly, target, message):
     # print(friendly)
 
     # 1. Weapon Viability
-    # results_amament = armament.check_armaments(friendly, target)
+    results_amament = None # armament.check_armaments(friendly, target)
 
     # 2. Hostile Threat Evaluation
     results_hostiles = hostiles.evaluate_threat(friendly, target)
@@ -57,10 +57,10 @@ def evaluate_aircraft(friendly, target, message):
     results_time = time_to_target.compute_time(friendly, target)
     print(results_time)
     # 5. Supporting Assets 
-    results_support = None
+    results_support = None # support.gather_support(friendly, target, result_hostiles)
 
     #6. Generate sequence 
-    results_sequence = None
+    results_sequence = None # sequence.make_timeline(friendly, target, results_amament, results_hostiles, results_fuel, results_time, results_support, timestamp)
 
     #7. Assess risk and Build 5-Line
      
@@ -84,12 +84,13 @@ def main():
     # print(friendly_aircraft_list[0].keys())
     target_aircraft = current_MEF["entity"].iloc[0]  # Expect single hostile aircraft
     target_message = current_MEF["message"].iloc[0]
+    target_time = current_MEF["timestamp"].iloc[0]
 
     # Step 2: Run evaluations
     all_results = {}
     for idx, friendly in enumerate(friendly_aircraft_list, start=1):
         print(f"\n=== Evaluating Friendly Aircraft {idx} ===")
-        evaluation = evaluate_aircraft(friendly, target_aircraft, target_message)
+        evaluation = evaluate_aircraft(friendly, target_aircraft, target_message, target_time)
         all_results[f"Aircraft_{idx}"] = evaluation
 
     return
