@@ -17,6 +17,7 @@ Purpose:
 import database 
 import fiveline
 import armament
+import sequence
 import hostiles
 import fuel
 import time_to_target  
@@ -47,20 +48,26 @@ def evaluate_aircraft(friendly, target, message, timestamp):
     results_amament = None # armament.check_armaments(friendly, target)
 
     # 2. Hostile Threat Evaluation
+    # values - 4 = no hostiles, 3 and below = yes hostiles [details follow]
     results_hostiles = hostiles.evaluate_threat(friendly, target)
-    print(results_hostiles)
+    print(f'hostiles: {results_hostiles}')
+
     # 3. Fuel Analysis
+    # values - 3 = no refuel needed, 2 = refuel needed [details follow], 1 = undetermined [details follow]
     results_fuel = fuel.analyze_fuel(friendly, target)
-    print(results_fuel)
+    print(f'fueld: {results_fuel}')
 
     # 4. Time Analysis
+    # values - in minutes
     results_time = time_to_target.compute_time(friendly, target)
-    print(results_time)
+    print(f'time: {results_time}')
+
     # 5. Supporting Assets 
-    results_support = None # support.gather_support(friendly, target, result_hostiles)
+    # values - 2 = yes support [values follow ], 1 = no support
+    results_support = None #support.gather_support(friendly, target, result_hostiles)
 
     #6. Generate sequence 
-    results_sequence = None # sequence.make_timeline(friendly, target, results_amament, results_hostiles, results_fuel, results_time, results_support, timestamp)
+    results_sequence = sequence.make_timeline(friendly, target, results_amament, results_hostiles, results_fuel, results_time, results_support, timestamp)
 
     #7. Assess risk and Build 5-Line
      
