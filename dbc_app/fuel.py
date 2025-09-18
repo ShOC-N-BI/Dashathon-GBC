@@ -189,31 +189,38 @@ def analyze_fuel(friendly, target):
     asset_long = float(friendly["lon"])
     all_view = database.query_friendly_asset(track_id)
     speed = all_view["groundspeed"]
+    if speed[0] == '0':
+         speed = 220
     tankers = database.query_tankers()
 
-    # if all_view.empty or "fuel" not in all_view.columns or "groundspeed" not in all_view.columns:
-    #     return 2, "Unknown Fuel or Speed"  # Cannot determine, assume worst case
-    # if all_view.loc[0, "fuel"] is None:
-    #     return 2, "Unknown Fuel" # Cannot determine fuel status, assume worst case
+    
     
     # Aircraft Data
     # -----------------------------
-    try:
-        current_fuel = float(all_view.loc[0, "fuel"])
-        aircraft_type = friendly["aircraft_type"].upper()
 
-    # if aircraft_type not in AIRCRAFT_FUEL_DATA:
-    #     return 2, "Unknown Aircraft Type"  # Unknown aircraft, assume worst case
+    
 
-        cruisespeed = AIRCRAFT_FUEL_DATA[aircraft_type]["cruise_speed"]
-        groundspeed = cruisespeed * 3.6
-        aircraft_rate = AIRCRAFT_FUEL_DATA[aircraft_type]["consumption_rate"] # Redundant, only use as backup
-        aircraft_max = AIRCRAFT_FUEL_DATA[aircraft_type]["max_fuel_capacity"]
-    except:
-        current_fuel = '20000'
-        cruisespeed = AIRCRAFT_FUEL_DATA["NaN"]["cruise_speed"]
-        groundspeed = cruisespeed * 3.6
-        aircraft_max = AIRCRAFT_FUEL_DATA["NaN"]["max_fuel_capacity"]
+    if all_view.empty or "fuel" not in all_view.columns or "groundspeed" not in all_view.columns:
+         current_fuel = 20000
+         speed = 220
+ 
+    if all_view.loc[0, "fuel"] is None:
+        current_fuel = 20000
+    else:
+         current_fuel = float(all_view.loc[0, "fuel"])
+    if friendly["aircraft_type"] == None or "[null]":
+         aircraft_type = "NaN"
+    else:
+         aircraft_type = friendly["aircraft_type"].upper()
+
+    if aircraft_type not in AIRCRAFT_FUEL_DATA or aircraft_type == None:
+        aircraft_type = "NaN"  # Unknown aircraft, assume worst case
+
+    cruisespeed = AIRCRAFT_FUEL_DATA[aircraft_type]["cruise_speed"]
+    groundspeed = cruisespeed * 3.6
+    aircraft_rate = AIRCRAFT_FUEL_DATA[aircraft_type]["consumption_rate"] # Redundant, only use as backup
+    aircraft_max = AIRCRAFT_FUEL_DATA[aircraft_type]["max_fuel_capacity"]
+
     # Trip Functions
     # -----------------------------
     def can_make_round_trip(F, R, D, V):
