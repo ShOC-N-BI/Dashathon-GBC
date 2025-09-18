@@ -1,13 +1,11 @@
-
 from __future__ import annotations
-
 import re
 import json
 from typing import Iterable, Dict, Any, List, Tuple, Optional
 import pandas as pd
 
-import database  # your DB creds + table names live here
-import parsing as P  # we import helpers from parsing.py
+import database  
+
 
 # ----------------------------- Classifiers -----------------------------
 def _norm_text(s: Optional[str]) -> str:
@@ -149,10 +147,6 @@ def fetch_deliverables_df(friendly_side: str, enemy_side: str) -> pd.DataFrame:
     df = func()
     return _ensure_base_codes(_ensure_string_deliverable_col(df))
 
-
-def find_weapon_matches(conn, df_actions: pd.DataFrame) -> pd.DataFrame:
-    df = ensure_weapon_list(df_actions.copy())
-
 # ----------------------------- Weapon parsing -----------------------------
 _SPLIT = re.compile(r"[;,/]+")
 _QTY_RE = re.compile(r"^\s*(\d+)\s*[xX]\s*(.+?)\s*$")
@@ -267,34 +261,253 @@ def _match_single_weapon(weap: Dict[str, Any], cat_df: pd.DataFrame) -> Optional
     return None
 
 
-# ----------------------------- Execution -----------------------------
-def check_armaments(friendly_assets: Any, enemy_data: Any) -> pd.DataFrame:
-    """
 
-    Output:
-      df_arm_results with columns:
-        ['friendly_id','weapon','weapon_base_code','qty',
-         'effectiveness','range','alt_low','alt_high','speed','dependencies']
+# ----------------------------- Ammo Needed -----------------------------
+def qty_to_reach_threshold(eff_percent: Any, qty: Any, threshold: float = 0.9) -> Tuple[float, int, str]:
+    """
+    Given per-try effectiveness in % (e.g., 33.33) and a max qty,
+    iterate n = 1..qty and stop when 1-(1-p)**n >= threshold or n == qty.
+    Returns: (cumulative_percent, qty_needed_for_threshold, need_more_note)
+      - cumulative_percent: 0..100 with two decimals
+      - qty_needed_for_90: n that first reaches >= threshold, else 0
+    """
+    try:
+        p = float(eff_percent) / 100.0
+        qmax = int(qty)
+    except (TypeError, ValueError):
+        return 0.0, 0, ""
+
+    if qmax <= 0 or p <= 0.0:
+        return 0.0, 0, ""
+
+    last = 0.0
+    qty_needed = 0
+    for n in range(1, qmax + 1):
+        last = 1 - (1 - p) ** n
+        if last >= threshold:
+            qty_needed = n
+            break
+
+    need_more = ""
+    if qty_needed == 0:
+        need_more = f"More than {qmax} needed for >{int(threshold*100)}% effectiveness"
+
+    return round(last * 100, 2), qty_needed, need_more
+
+
+# -----------------------------  Risk Assessment -----------------------------
+def _val_present(x: Any) -> bool:
+    # truthy for non-empty strings/numbers and non-NaN values
+    return x is not None and not (isinstance(x, float) and pd.isna(x)) and x != ""
+
+# ---------- RISK SCORE DISABLED ----------
+# def risk_assessment(row: Optional[Dict[str, Any]]) -> Optional[int]:
+#     """
+#     Math for the effectiveness score
+#     """
+#     # Default so we don't crash if missing fields
+#     eff_perc = 0.0  # 0..1
+#
+#     # Use the helper to compute cumulative effectiveness vs. qty and the n needed for >=90%
+#     if _val_present(row.get("effectiveness")) and isinstance(row.get("qty"), (int, float)):
+#         total_percent, qty_needed, need_more = qty_to_reach_threshold(
+#             row.get("effectiveness"), row.get("qty"), threshold=0.9
+#         )
+#         eff_perc = total_percent / 100.0  # convert back to 0..1 for scoring
+#
+#         # (Optional) stash details on the row for later display/debug
+#         row["total_effectiveness_percent"] = total_percent
+#         row["qty_needed_for_90"] = qty_needed
+#         if need_more:
+#             row["needs_more_note"] = need_more
+#
+#     """
+#     Weights: weapon=3, effectiveness=3, qty=2, range=2, alt=2, speed=1, dependencies=1
+#     """
+#     score = 0
+#     score += 3 if _val_present(row.get("weapon")) else 0
+#     score += 3 if eff_perc >= 0.9 else 0
+#     score += 2 if 0.1 <= eff_perc < 0.9 else 0
+#     score += 2 if _val_present(row.get("qty")) else 0
+#     score += 2 if _val_present(row.get("range")) else 0
+#     score += 2 if _val_present(row.get("alt_low")) or _val_present(row.get("alt_high")) else 0
+#     score += 1 if eff_perc < 0.1 else 0
+#     score += 1 if _val_present(row.get("speed")) else 0
+#     score += 0 if _val_present(row.get("dependencies")) else 1
+#     return score
+# ----------------------------------------
+
+
+# ----------------------------- Reduction (one result per friendly_id) -----------------------------
+def _reduce_matches_by_friendly(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    For each friendly_id:
+      - If ANY rows (with a weapon) have total_effectiveness_percent >= 90, keep exactly ONE:
+          choose the row with the lowest qty_needed_for_90, then highest total_effectiveness_percent.
+      - Else (no individual row reaches 90): keep ALL weapon rows for that friendly_id,
+          and label the rows that are part of a greedy 'combined plan' with note='COMBINED PLAN'.
+          Also attach:
+            - combined_total_effectiveness_percent (same on all plan rows)
+            - qty_used (per-weapon shots consumed in plan)
+      - If a friendly_id has only note rows (weapon is NaN), keep a single note row.
+    """
+    if df is None or df.empty:
+        return df
+
+    out = df.copy()
+
+    # Coerce to numeric for reliable comparisons/sorting
+    out["total_effectiveness_percent"] = pd.to_numeric(out.get("total_effectiveness_percent"), errors="coerce")
+    out["qty_needed_for_90"]          = pd.to_numeric(out.get("qty_needed_for_90"), errors="coerce")
+    out["effectiveness"]              = pd.to_numeric(out.get("effectiveness"), errors="coerce")
+    out["qty"]                        = pd.to_numeric(out.get("qty"), errors="coerce")
+
+    # Preserve original columns + new combined metrics
+    cols = out.columns.tolist()
+    for extra in ["combined_total_effectiveness_percent", "qty_used"]:
+        if extra not in cols:
+            cols.append(extra)
+
+    def choose(group: pd.DataFrame) -> pd.DataFrame:
+        # Separate actual matches from pure note rows
+        matches = group[~group["weapon"].isna()]
+        if matches.empty:
+            # Only note rows -> keep one
+            return group.iloc[[0]]
+
+        # Case 1: keep a single best row if any individual match reaches >=90%
+        ge90 = matches[matches["total_effectiveness_percent"] >= 90.0]
+        if not ge90.empty:
+            best = ge90.sort_values(
+                by=["qty_needed_for_90", "total_effectiveness_percent"],
+                ascending=[True, False]
+            ).iloc[[0]]
+            return best
+
+        # Case 2: combined plan across weapons (keep multiple rows, label + attach combined metrics)
+        valid = matches[(matches["effectiveness"].notna()) & (matches["qty"].notna()) & (matches["qty"] >= 1)]
+        if valid.empty:
+            # Nothing to compute; return all matches unchanged
+            return matches
+
+        # Greedy: highest per-shot effectiveness first
+        valid = valid.assign(
+            p = valid["effectiveness"].astype(float) / 100.0,
+            q = valid["qty"].astype(int)
+        ).sort_values("p", ascending=False)
+
+        failure = 1.0
+        plan_counts: Dict[str, int] = {}
+        shots_used_total = 0
+
+        # Build plan by consuming shots from highest-p first
+        for _, r in valid.iterrows():
+            p = float(r["p"])
+            q = int(r["q"])
+            name = str(r["weapon"])
+
+            used = 0
+            for _ in range(q):
+                if 1.0 - failure >= 0.90:
+                    break
+                failure *= (1.0 - p)
+                used += 1
+                shots_used_total += 1
+
+            if used > 0:
+                plan_counts[name] = used
+
+            if 1.0 - failure >= 0.90:
+                break
+
+        combined_pct = round((1.0 - failure) * 100.0, 2)
+
+        # Label rows used in the plan and attach combined metrics
+        labeled = matches.copy()
+        used_mask = labeled["weapon"].astype(str).isin(plan_counts.keys())
+
+        labeled.loc[used_mask, "note"] = "COMBINED PLAN"
+        labeled.loc[used_mask, "combined_total_effectiveness_percent"] = combined_pct
+
+        # Per-weapon quantity used in the plan
+        labeled["qty_used"] = pd.NA  # default
+        for wname, cnt in plan_counts.items():
+            labeled.loc[labeled["weapon"].astype(str) == wname, "qty_used"] = cnt
+
+        # Clear combined metric on non-plan rows for clarity
+        labeled.loc[~used_mask, "combined_total_effectiveness_percent"] = pd.NA
+
+        return labeled
+
+    reduced = (
+        out.groupby(["friendly_id"], dropna=False, group_keys=False)
+           .apply(choose)
+           .reset_index(drop=True)
+    )
+
+    # Preserve original column order (+ combined metrics)
+    return reduced[cols]
+
+
+
+# ----------------------------- Execution -----------------------------
+
+def check_armaments(friendly_assets: Any, enemy_data: Any) -> Tuple[int, pd.DataFrame]:
+    """
+    Returns:
+      app_code, df_arm_results
+
+    app_code:
+      1 = either the enemy domain can't be determined OR no friendly asset domain could be determined
+      2 = classification ok but no matched weapons for any asset
+      3 = matches exist but neither any individual total_effectiveness_percent nor any combined_total_effectiveness_percent reaches ≥90%
+      4 = everything else (i.e., at least one result reaches ≥90% or normal successful case)
     """
     # Normalize friendlies
     friendly_list = _ensure_friendly_list(friendly_assets)
 
-    # Classify enemy side from any input shape
+    # Classify enemy side
     enemy_side = classify_enemy_side(enemy_data)
-    if not enemy_side:
-        raise ValueError(f"Could not determine enemy side from: {enemy_data!r}")
-
     rows: List[Dict[str, Any]] = []
     cache: Dict[Tuple[str, str], pd.DataFrame] = {}
+
+    classified_any_friendly = False   # at least one friendly got a determinable side
+    matched_any_overall = False       # at least one weapon matched across all assets
+
+    # Early exit if enemy side undetermined
+    if not enemy_side:
+        msg = "Could not determine enemy side/domain."
+        # Return a minimal DF with a note
+        df_arm_results = pd.DataFrame([{
+            "friendly_id": None, "weapon": None, "weapon_base_code": None, "qty": None,
+            "effectiveness": None, "range": None, "alt_low": None, "alt_high": None,
+            "speed": None, "dependencies": None,
+            "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
+            # "risk_score": 0,  # risk score disabled
+            "note": msg,
+            "combined_total_effectiveness_percent": None, "qty_used": None
+        }])
+        return 1, df_arm_results
 
     for asset in friendly_list:
         if not isinstance(asset, dict):
             continue  # safety
 
-        fid =  asset.get("callsign")
+        fid = asset.get("callsign")
         fside = classify_friendly_side(asset)
         if not fside:
+            # Skip but keep a note row for visibility
+            rows.append({
+                "friendly_id": fid, "weapon": None, "weapon_base_code": None, "qty": None,
+                "effectiveness": None, "range": None, "alt_low": None, "alt_high": None,
+                "speed": None, "dependencies": None,
+                "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
+                # "risk_score": 0,  # risk score disabled
+                "note": "Could not determine friendly asset side/domain.",
+                "combined_total_effectiveness_percent": None, "qty_used": None
+            })
             continue
+        classified_any_friendly = True
 
         key = (fside, enemy_side)
         if key not in cache:
@@ -302,7 +515,18 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> pd.DataFrame:
 
         cat_df = cache[key]
         weapons = parse_weapons_field(asset.get("weapon"))
+
+        # If no parseable weapons, add a single note row and continue
         if not weapons:
+            rows.append({
+                "friendly_id": fid, "weapon": None, "weapon_base_code": None, "qty": None,
+                "effectiveness": None, "range": None, "alt_low": None, "alt_high": None,
+                "speed": None, "dependencies": None,
+                "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
+                # "risk_score": 0,  # risk score disabled
+                "note": "No parseable weapons provided.",
+                "combined_total_effectiveness_percent": None, "qty_used": None
+            })
             continue
 
         eff_col = _pick_col(cat_df, CANDIDATES["effectiveness"])
@@ -312,12 +536,17 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> pd.DataFrame:
         spd_col = _pick_col(cat_df, CANDIDATES["speed"])
         dep_col = _pick_col(cat_df, CANDIDATES["dependencies"])
 
+        matched_any_this_asset = False
+
         for w in weapons:
             match = _match_single_weapon(w, cat_df)
             if match is None:
-                continue
+                continue  # try next weapon
 
-            rows.append({
+            matched_any_this_asset = True
+            matched_any_overall = True
+
+            row = {
                 "friendly_id": fid,
                 "weapon": w["name"],
                 "weapon_base_code": w.get("base_code"),
@@ -328,32 +557,92 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> pd.DataFrame:
                 "alt_high": (match.get(hi_col) if hi_col else None),
                 "speed": (match.get(spd_col) if spd_col else None),
                 "dependencies": (match.get(dep_col) if dep_col else None),
+                "note": None,
+                "combined_total_effectiveness_percent": None,
+                "qty_used": None,
+            }
+
+            # Compute cumulative effectiveness vs. the provided qty and stash details
+            if _val_present(row.get("effectiveness")) and isinstance(row.get("qty"), (int, float)):
+                total_percent, qty_needed, need_more = qty_to_reach_threshold(
+                    row.get("effectiveness"), row.get("qty"), threshold=0.9
+                )
+                row["total_effectiveness_percent"] = total_percent
+                row["qty_needed_for_90"] = qty_needed
+                if need_more:
+                    row["needs_more_note"] = need_more
+
+            # Score (disabled)
+            # row["risk_score"] = risk_assessment(row)
+            rows.append(row)
+
+        # After trying all weapons: if none matched, add one note row for this asset
+        if not matched_any_this_asset:
+            rows.append({
+                "friendly_id": fid, "weapon": None, "weapon_base_code": None, "qty": None,
+                "effectiveness": None, "range": None, "alt_low": None, "alt_high": None,
+                "speed": None, "dependencies": None,
+                "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
+                # "risk_score": 0,  # risk score disabled
+                "note": "The asset has no armaments that meet the criteria of this engagement.",
+                "combined_total_effectiveness_percent": None, "qty_used": None
             })
 
+    # If we never classified any friendly side at all -> code 1
+    if not classified_any_friendly:
+        df_arm_results = pd.DataFrame(rows, columns=[
+            "friendly_id","weapon","weapon_base_code","qty",
+            "effectiveness","range","alt_low","alt_high","speed","dependencies",
+            "total_effectiveness_percent","qty_needed_for_90","needs_more_note","note",
+            "combined_total_effectiveness_percent","qty_used"
+        ])
+        return 1, df_arm_results
+
+    # Build DF before reduction
     df_arm_results = pd.DataFrame(rows, columns=[
         "friendly_id","weapon","weapon_base_code","qty",
-        "effectiveness","range","alt_low","alt_high","speed","dependencies"
+        "effectiveness","range","alt_low","alt_high","speed","dependencies",
+        "total_effectiveness_percent","qty_needed_for_90","needs_more_note","note",
+        "combined_total_effectiveness_percent","qty_used"
     ])
-    return df_arm_results
+
+    # If absolutely no matches anywhere -> code 2
+    if not matched_any_overall:
+        # Still run reducer (it will mostly pass notes through), but app_code is 2
+        df_arm_results = _reduce_matches_by_friendly(df_arm_results)
+        return 2, df_arm_results
+
+    # Reduce with your rules (may mark combined plan rows and fill combined_total_effectiveness_percent/qty_used)
+    df_arm_results = _reduce_matches_by_friendly(df_arm_results)
+
+    # Determine app_code: any outcome reaches ≥90% (single or combined)?
+    reached_90_any = False
+    if "total_effectiveness_percent" in df_arm_results.columns:
+        reached_90_any = reached_90_any or pd.to_numeric(
+            df_arm_results["total_effectiveness_percent"], errors="coerce"
+        ).ge(90.0).any()
+
+    if "combined_total_effectiveness_percent" in df_arm_results.columns:
+        reached_90_any = reached_90_any or pd.to_numeric(
+            df_arm_results["combined_total_effectiveness_percent"], errors="coerce"
+        ).ge(90.0).any()
+
+    app_code = 4 if reached_90_any else 3
+    return app_code, df_arm_results
+
 
 
 # ----------------------------- Example -----------------------------
 if __name__ == "__main__":
-    enemy = {
-        "id": 43826,
-        "CallSign": None,
-        "Track Cat": "Surface",
-        "Track ID": "Hostile",
-        "Aircraft Type": None
-    }
-
+    enemy = { "id": 43826, "CallSign": None, "Track Cat": "Air", "Track ID": "Hostile", "Aircraft Type": None }
     friendly_assets = [{
-        "id": "HARPY 02",
+        "callsign": "HARPY 02",
         "weapon": "2XAIM-9, 4XAIM-120, 4XGBU-53 SD",
         "aircraft_type": "F-A-22",
         "trackcategory": "air"
     }]
 
-    df = check_armaments(friendly_assets, enemy)
+    app_code, df = check_armaments(friendly_assets, enemy)
+    print("app_code:", app_code)
     with pd.option_context("display.max_columns", None, "display.width", 160):
         print(df.head(20))
