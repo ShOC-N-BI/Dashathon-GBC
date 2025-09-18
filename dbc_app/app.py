@@ -46,7 +46,8 @@ def evaluate_aircraft(friendly, target, message, timestamp):
 
     # 1. Weapon Viability
     # values - 4 valid weapon pair, 3 asset weapon not 90% effective, 2 asset weapon no options, 1 missing asset or target domain
-    results_amament = None # armament.check_armaments(friendly, target)
+    results_amament = armament.check_armaments(friendly, target)
+    print(f'armament: {results_amament}')
 
     # 2. Hostile Threat Evaluation
     # values - 4 = no hostiles, 3 and below = yes hostiles [details follow]
