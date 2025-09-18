@@ -19,13 +19,13 @@ def compute_time(friendly, target):
     time = round(time, 2)
 
     if time < 10:
-        risk = 1
-    elif 10 <= time < 20:
-        risk = 2
-    elif 20 <= time < 60:
-        risk = 3
-    else:
         risk = 4
+    elif 10 <= time < 20:
+        risk = 3
+    elif 20 <= time < 60:
+        risk = 2
+    else:
+        risk = 1
 
     return float(time), risk
 
