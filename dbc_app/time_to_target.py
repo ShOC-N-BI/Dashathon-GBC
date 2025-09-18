@@ -6,8 +6,26 @@ import json
 
 
 def compute_time(friendly, target):
-    distance = float(friendly["distance_km"]) * 1000
-    groundspeed = database.get_groundspeed(friendly["bc3_jtn"])
-    time = (distance / groundspeed["groundspeed"]) / 60
+    import pandas as pd
+    
+    distance = float(friendly["distance_km"]) * 1000  # convert to meters
+    groundspeed_data = database.get_groundspeed(friendly["bc3_jtn"])
+
+    groundspeed = groundspeed_data["groundspeed"]
+    if isinstance(groundspeed, pd.Series):
+        groundspeed = groundspeed.iloc[0]
+
+    time = (distance / groundspeed) / 60  # time in minutes
     time = round(time, 2)
-    return time
+
+    if time < 10:
+        risk = 1
+    elif 10 <= time < 20:
+        risk = 2
+    elif 20 <= time < 60:
+        risk = 3
+    else:
+        risk = 4
+
+    return float(time), risk
+
