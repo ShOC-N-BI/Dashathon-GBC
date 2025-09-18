@@ -44,12 +44,10 @@ def parse_track_info(track_string):
 
 # Mission Pairing
 #----------------
-# SEAD 1-2x
 # AWAC 1x
 # Tanker 1x
 # EW (Electronic Warfare) 1x
 # Escort 1-2x
-# 1-2x Same Effective Aircraft
 
 # -----------------------------
 # Support Finders
@@ -72,8 +70,8 @@ def find_tankers(friendly):
     return nearest_tanker
 
 # Edit for different 
-def find_escort(friendly, n):
-    escort_list = database.query_assets("aircraft_type", "F-A-22")
+def find_escort(friendly, hostile, target):
+    escort_list = database.query_assets("weapon","ILIKE", "%AIM-120%")
     escort_distances = []
 
     for row in escort_list.itertuples():
@@ -86,31 +84,82 @@ def find_escort(friendly, n):
     escort_distances.sort(key=lambda x: x[0])
 
     # Select top n + 1 closest escorts
-    nearest_escort = [row for _, row in escort_distances[:n + 1]]
+    nearest_escort = [row for _, row in escort_distances[:hostile + 1]]
+    escort_report = {
+        "escort": [
+          {
+                "bc3_jtn": escort.bc3_jtn,
+                "bc3_vcs": escort.bc3_vcs,
+                "lat": escort.latitude,
+                "lon": escort.longitude,
+                "aircraft_type": escort.aircraft_type,
+                "distance_km": haversine(
+                    escort.latitude,
+                    escort.longitude,
+                    float(target["Lattitude"]),
+                    float(target["Longitude"])
+                ),
+            }
+        for escort in nearest_escort
+        ]
+    }
+    return escort_report
 
-    return nearest_escort
+def find_awac(friendly):
+    min_distance = float("inf")
+    awacs_list = database.query_awacs()
+    for awacs in awacs_list:
+        awacs_lat = float(awacs["latitude"])
+        awacs_lon = float(awacs["longitude"])
+        distance = haversine(float(friendly["lat"]), float(friendly["lon"]), awacs_lat, awacs_lon)
+        if distance < min_distance:
+            min_distance = distance
+            nearest = awacs
+    return nearest
 
+def find_ew(friendly):
+    min_distance = float("inf")
+    ew_list = database.query_ew()
+    for ew in ew_list:
+        ew_lat = float(ew["latitude"])
+        ew_lon = float(ew["longitude"])
+        distance = haversine(float(friendly["lat"]), float(friendly["lon"]), ew_lat, ew_lon)
+        if distance < min_distance:
+            min_distance = distance
+            nearest = ew
+    return nearest
 
 
 # -----------------------------
 # Main Code
 # -----------------------------
 def gather_support(friendly, target, hostiles):
-    asset = friendly["bc3_jtn"]
+    # asset = friendly["bc3_jtn"]
     target_data = parse_track_info(target)
-    hostile_count = hostiles[0]
-    tankers = find_tankers(friendly)
-    if hostile_count >= 1:
-        escorts = find_escort(friendly, hostile_count)
+    # tankers = find_tankers(friendly)
+    awacs = find_awac(friendly)
+    ew = find_ew(friendly)
+    hostile_code = hostiles[0]
+    hostile_data = hostiles[1]
+    fuel_report = []
 
+    if hostile_code < 4:
+        escorts = find_escort(friendly, hostile_data, target_data)
+        for item in escorts["escort"]:
+            fuel_report.append(fuel.analyze_fuel(item, target)) 
+    else:
+        escorts = "None"
+        fuel_report = "None"
+
+    # build_report = {
+    #     "escort": escorts,
+    #     "tankers": {"vcs": tankers["bc3_vcs"], "jtn": tankers["bc3_jtn"]}
+    # }
     build_report = {
-        "escort": [
-            {
-                "vcs": escort.bc3_vcs,
-                "jtn": escort.bc3_jtn,
-            }
-            for escort in escorts
-        ],
-        "tankers": {"vcs": tankers["bc3_vcs"], "jtn": tankers["bc3_jtn"]}
+        "escort": escorts,
+        "tankers": fuel_report,
+        "awacs": awacs,
+        "ew": ew
     }
+
     return build_report

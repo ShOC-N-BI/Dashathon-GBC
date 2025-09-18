@@ -37,7 +37,6 @@ AIRCRAFT_FUEL_DATA = {
     "RC-135": {"consumption_rate": 11000, "max_fuel_capacity": 130000, "cruise_speed": 800},
     "F-35B": {"consumption_rate": 7300, "max_fuel_capacity": 13500, "cruise_speed": 850},
     "F-A-22": {"consumption_rate": 8000, "max_fuel_capacity": 18000, "cruise_speed": 850},
-    "DIS(265)": {"consumption_rate": 0, "max_fuel_capacity": 0, "cruise_speed": 0},
     "F-A-18E-F": {"consumption_rate": 6500, "max_fuel_capacity": 14500, "cruise_speed": 850},
     "F16C": {"consumption_rate": 5800, "max_fuel_capacity": 7000, "cruise_speed": 850},
     "MH60R": {"consumption_rate": 1200, "max_fuel_capacity": 6000, "cruise_speed": 270},
@@ -182,7 +181,7 @@ def analyze_fuel(friendly, target):
         1: Cannot make round trip even at max fuel
     """
     # Asset Identification
-# -----------------------------
+    # -----------------------------
     track_id = friendly["bc3_jtn"]
     distance = float(friendly["distance_km"])
     asset_lat = float(friendly["lat"])
@@ -192,25 +191,25 @@ def analyze_fuel(friendly, target):
     tankers = database.query_tankers()
 
     if all_view.empty or "fuel" not in all_view.columns or "groundspeed" not in all_view.columns:
-        return 1, "Unknown Fuel or Speed"  # Cannot determine, assume worst case
+        return 2, "Unknown Fuel or Speed"  # Cannot determine, assume worst case
     if all_view.loc[0, "fuel"] is None:
-        return 1, "Unknown Fuel" # Cannot determine fuel status, assume worst case
+        return 2, "Unknown Fuel" # Cannot determine fuel status, assume worst case
     
     # Aircraft Data
-# -----------------------------
+    # -----------------------------
     current_fuel = float(all_view.loc[0, "fuel"])
     aircraft_type = friendly["aircraft_type"].upper()
+
+    if aircraft_type not in AIRCRAFT_FUEL_DATA:
+        return 2, "Unknown Aircraft Type"  # Unknown aircraft, assume worst case
+
     cruisespeed = AIRCRAFT_FUEL_DATA[aircraft_type]["cruise_speed"]
     groundspeed = cruisespeed * 3.6
     aircraft_rate = AIRCRAFT_FUEL_DATA[aircraft_type]["consumption_rate"] # Redundant, only use as backup
     aircraft_max = AIRCRAFT_FUEL_DATA[aircraft_type]["max_fuel_capacity"]
 
-
-    if aircraft_type not in AIRCRAFT_FUEL_DATA:
-        return 1, "Unknown Aircraft Type"  # Unknown aircraft, assume worst case
-
     # Trip Functions
-# -----------------------------
+    # -----------------------------
     def can_make_round_trip(F, R, D, V):
         time_required = (2 * D) / V
         fuel_needed = R * time_required
@@ -221,15 +220,6 @@ def analyze_fuel(friendly, target):
         fuel_needed = R * time_required
         return F >= fuel_needed
 
-    
-# -----------------------------
-# Logic calls for variable consumption rate, data for the nearest fuel tankers, and distance to target calculations
-# -----------------------------
-    aircraft_consumption_rate = get_consumption_rate_mps(speed, AIRCRAFT_FUEL_DATA[aircraft_type])
-    nearest_tanker, distance_to_tanker, target_distance = find_nearest_tanker(asset_lat, asset_long, tankers, parse_track_info(target))
-    midpoint_calc = midpoint_to_tanker(nearest_tanker["latitude"], nearest_tanker["longitude"], asset_lat, asset_long)
-    distance_to_target, distance_to_origin = midpoint_for_target(midpoint_calc, parse_track_info(target), asset_lat, asset_long)
-
     def build_report(score, tanker):
 
         return_report = {
@@ -238,16 +228,27 @@ def analyze_fuel(friendly, target):
             "tanker_vcs": tanker["bc3_vcs"],
             "tanker_callsign": tanker["callsign"]
         }
-        trip_check()
         return return_report
-    def trip_check():
-        if can_make_round_trip(current_fuel, aircraft_consumption_rate[0], distance, groundspeed):
-            return build_report(3, nearest_tanker)  # Can make it with current fuel
-        elif can_make_round_trip(current_fuel, aircraft_consumption_rate[0], distance_to_tanker, groundspeed):
+
+# -----------------------------
+# Logic calls for variable consumption rate, data for the nearest fuel tankers, and distance to target calculations
+# -----------------------------
+    aircraft_consumption_rate = get_consumption_rate_mps(speed, AIRCRAFT_FUEL_DATA[aircraft_type])
+    nearest_tanker, distance_to_tanker, target_distance = find_nearest_tanker(asset_lat, asset_long, tankers, parse_track_info(target))
+    midpoint_calc = midpoint_to_tanker(nearest_tanker["latitude"], nearest_tanker["longitude"], asset_lat, asset_long)
+    distance_to_target, distance_to_origin = midpoint_for_target(midpoint_calc, parse_track_info(target), asset_lat, asset_long)
+
+    if can_make_round_trip(current_fuel, aircraft_consumption_rate[0], distance, groundspeed):
+            return build_report(4, nearest_tanker)  # Can make it with current fuel
+    elif can_make_round_trip(current_fuel, aircraft_consumption_rate[0], distance_to_tanker, groundspeed):
             # Can make it to the tanker
             if can_make_tanker_trip(aircraft_max, aircraft_consumption_rate[0], (distance_to_target + distance + distance_to_origin), groundspeed):
-                return build_report(2, nearest_tanker["bc3_vcs"], nearest_tanker["bc3_jtn"]) (distance_to_target + distance + distance_to_origin)  # Needs refuel, but max fuel allows it, considers new target distance
+                return build_report(3, nearest_tanker["bc3_vcs"], nearest_tanker["bc3_jtn"]) (distance_to_target + distance + distance_to_origin)  # Needs refuel, but max fuel allows it, considers new target distance
             else:
                 return 1, "Cannot reach target after refuel" # Cannot make round trip even at max fuel       
-        else:
+    else:
             return 1, "Cannot make round trip"  # Cannot make round trip even at max fuel
+
+
+        
+        
