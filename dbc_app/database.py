@@ -3,6 +3,7 @@ import psycopg2
 import pandas as pd
 from sqlalchemy import create_engine
 from dotenv import load_dotenv
+import datetime
 import os
 
 # Database connection settings
@@ -33,6 +34,41 @@ red_maritime_del_drone = "red_maritime_deliverables_drone"
 red_maritime_del_s2s = "red_maritime_deliverables_surf_to_surf"
 bc3_with_all_vw = "bc3_with_all_vw"
 entity = "pae_data"
+
+def insert_data(entity:str, actions, message, timestamp) -> list:
+    print(timestamp)
+    try:
+        conn = psycopg2.connect(
+            host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
+        )
+        query = "INSERT INTO mef_data_testing (entity, actions, message, timestamp) VALUES (%s, %s, %s, %s);"
+        params = (f"{entity}, {actions}, {message}, {timestamp}")
+        with conn.cursor() as cur:
+            cur.execute(query, params,)
+    except Exception as e:
+        print("Error:", e)
+    
+    finally: 
+        return
+    
+def query_user_input() -> list:
+    results = []
+    try:
+        conn = psycopg2.connect(
+            host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
+        )
+        query = f"""
+            SELECT * FROM user_input;
+        """
+        df = pd.read_sql(query, conn,)
+        results = df.iloc[0].to_dict()
+
+    except Exception as e:
+        print("Error:", e)
+    finally:
+        if 'conn' in locals():
+            conn.close()
+    return results
 
 def query_assets(column: str, operator:str, filter: str) -> list:
     results = []
