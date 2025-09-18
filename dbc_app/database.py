@@ -33,6 +33,7 @@ red_maritime_del_drone = "red_maritime_deliverables_drone"
 red_maritime_del_s2s = "red_maritime_deliverables_surf_to_surf"
 bc3_with_all_vw = "bc3_with_all_vw"
 entity = "pae_data"
+user_input = "user_input"
 
 def query_assets(column: str, operator:str, filter: str) -> list:
     results = []
@@ -482,9 +483,23 @@ def query_bc3_with_all_vw():
     except Exception as e:
         print("Error:", e)
 
-    return df_bc3_with_all_vw
+    return df_bc3_with_all_vw 
 
+def query_df_user_input():
+    df_user_input = pd.DataFrame()
+    try:
+        # Create SQLAlchemy engine
+        engine = create_engine(
+            f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        )
 
+        query = f"SELECT * FROM {user_input};"
+        df_user_input = pd.read_sql(query, con=engine)
+
+    except Exception as e:
+        print("Error:", e)
+
+    return df_user_input 
 
 def get_groundspeed(identifier: str) -> pd.DataFrame:
     # print(identifier)
