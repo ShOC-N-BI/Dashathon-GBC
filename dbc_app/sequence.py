@@ -8,7 +8,7 @@ def make_timeline(friendly, results_hostiles, results_fuel, results_support, tim
     mission_time = (dt + timedelta(minutes=20)).strftime("%H%M")
 
     tanker = results_fuel["tanker_callsign"]
-    support = results_support
+    support = results_support["escort"]["callsign"]
     fuel_score = results_fuel["score"]
     hostile_score = results_hostiles[0]
 
