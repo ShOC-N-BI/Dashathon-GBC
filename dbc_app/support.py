@@ -84,7 +84,7 @@ def find_escort(friendly, hostile, target):
     escort_distances.sort(key=lambda x: x[0])
 
     # Select top n + 1 closest escorts
-    nearest_escort = [row for _, row in escort_distances[:4 + 1]]
+    nearest_escort = [row for _, row in escort_distances[:hostile + 1]]
     escort_report = {
         "escort": [
           {
@@ -157,10 +157,11 @@ def gather_support(friendly, target, hostiles):
     hostile_data = hostiles[1]
     fuel_report = []
 
-    if hostile_code <= 4:
-        escorts = find_escort(friendly, hostile_data, target_data)
-        for item in escorts["escort"]:
+    if hostile_code < 4:
+        escort_report = find_escort(friendly, hostile_data, target_data)
+        for item in escort_report["escort"]:
             fuel_report.append(fuel.analyze_fuel(item, target))
+        escorts = escort_report["escort"]
     else:
         escorts = "None"
         fuel_report = "None"
@@ -170,7 +171,7 @@ def gather_support(friendly, target, hostiles):
     #     "tankers": {"vcs": tankers["bc3_vcs"], "jtn": tankers["bc3_jtn"]}
     # }
     build_report = {
-        "escort": escorts["escort"],
+        "escort": escorts,
         "tankers": fuel_report,
         "awacs": awacs,
         "ew": ew,

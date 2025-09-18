@@ -118,7 +118,7 @@ def query_tankers() -> list:
             AND bc3_jtn IS NOT NULL
             AND bc3_jtn != '[null]';
         """
-        params = ("KC-135", "KC-10", "KC-46")
+        params = ("KC-135", "KC135", "KC46")
         with conn.cursor() as cur:
             cur.execute(query, params)
             columns = [desc[0] for desc in cur.description]
