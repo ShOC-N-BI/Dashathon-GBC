@@ -74,9 +74,9 @@ def find_escort(friendly, hostile, target):
     escort_list = database.query_assets("weapon","ILIKE", "%AIM-120%")
     escort_distances = []
 
-    for row in escort_list.itertuples():
-        escort_lat = float(row.latitude)
-        escort_lon = float(row.longitude)  # Make sure this isn't latitude again!
+    for row in escort_list:
+        escort_lat = float(row["latitude"])
+        escort_lon = float(row["longitude"])  # Make sure this isn't latitude again!
         distance = haversine(escort_lat, escort_lon, float(friendly["lat"]), float(friendly["lon"]))
         escort_distances.append((distance, row))
 
@@ -84,18 +84,19 @@ def find_escort(friendly, hostile, target):
     escort_distances.sort(key=lambda x: x[0])
 
     # Select top n + 1 closest escorts
-    nearest_escort = [row for _, row in escort_distances[:hostile + 1]]
+    nearest_escort = [row for _, row in escort_distances[:4 + 1]]
     escort_report = {
         "escort": [
           {
-                "bc3_jtn": escort.bc3_jtn,
-                "bc3_vcs": escort.bc3_vcs,
-                "lat": escort.latitude,
-                "lon": escort.longitude,
-                "aircraft_type": escort.aircraft_type,
+                "bc3_jtn": escort["bc3_jtn"],
+                "bc3_vcs": escort["bc3_vcs"],
+                "callsign": escort["callsign"],
+                "lat": escort["latitude"],
+                "lon": escort["longitude"],
+                "aircraft_type": escort["aircraft_type"],
                 "distance_km": haversine(
-                    escort.latitude,
-                    escort.longitude,
+                    escort["latitude"],
+                    escort["longitude"],
                     float(target["Lattitude"]),
                     float(target["Longitude"])
                 ),
@@ -129,6 +130,18 @@ def find_ew(friendly):
             nearest = ew
     return nearest
 
+def find_sead(friendly):
+    min_distance = float("inf")
+    sead_list = database.query_assets("weapon","ILIKE", "%AGM-88%")
+    for sead in sead_list:
+        sead_lat = float(sead["latitude"])
+        sead_lon = float(sead["longitude"])
+        distance = haversine(float(friendly["lat"]), float(friendly["lon"]), sead_lat, sead_lon)
+        if distance < min_distance:
+            min_distance = distance
+            nearest = sead
+    return nearest
+
 
 # -----------------------------
 # Main Code
@@ -139,14 +152,15 @@ def gather_support(friendly, target, hostiles):
     # tankers = find_tankers(friendly)
     awacs = find_awac(friendly)
     ew = find_ew(friendly)
+    sead = find_sead(friendly)
     hostile_code = hostiles[0]
     hostile_data = hostiles[1]
     fuel_report = []
 
-    if hostile_code < 4:
+    if hostile_code <= 4:
         escorts = find_escort(friendly, hostile_data, target_data)
         for item in escorts["escort"]:
-            fuel_report.append(fuel.analyze_fuel(item, target)) 
+            fuel_report.append(fuel.analyze_fuel(item, target))
     else:
         escorts = "None"
         fuel_report = "None"
@@ -156,10 +170,11 @@ def gather_support(friendly, target, hostiles):
     #     "tankers": {"vcs": tankers["bc3_vcs"], "jtn": tankers["bc3_jtn"]}
     # }
     build_report = {
-        "escort": escorts,
+        "escort": escorts["escort"],
         "tankers": fuel_report,
         "awacs": awacs,
-        "ew": ew
+        "ew": ew,
+        "sead": sead,
     }
 
     return build_report

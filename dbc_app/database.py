@@ -34,8 +34,8 @@ red_maritime_del_s2s = "red_maritime_deliverables_surf_to_surf"
 bc3_with_all_vw = "bc3_with_all_vw"
 entity = "pae_data"
 
-def query_assets(column: str, operator:str, filter: str) -> pd.DataFrame:
-    df_asset = pd.DataFrame()
+def query_assets(column: str, operator:str, filter: str) -> list:
+    results = []
     try:
         # Connect to PostgreSQL
         conn = psycopg2.connect(
@@ -44,16 +44,17 @@ def query_assets(column: str, operator:str, filter: str) -> pd.DataFrame:
 
         # Use parameterized query to prevent SQL injection
         query = f"SELECT * FROM {bc3_with_all_vw} WHERE {column} {operator} '{filter}' AND aircraft_type NOT LIKE 'DIS(265)';"
-        df_asset = pd.read_sql(query, conn,)
-        
+        with conn.cursor() as cur:
+            cur.execute(query,)
+            columns = [desc[0] for desc in cur.description]
+            for row in cur.fetchall():
+                results.append(dict(zip(columns, row)))
     except Exception as e:
         print("Error:", e)
-
     finally:
         if 'conn' in locals():
             conn.close()
-
-    return df_asset
+    return results
 
 def query_awacs() -> list:
     results = []
