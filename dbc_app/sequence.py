@@ -1,31 +1,27 @@
 from datetime import datetime, timedelta
-import database
 
-def make_timeline(friendly,results_hostiles, results_fuel, results_support, timestamp):
-    # get hour/minute from timestamp i.e. 2315
-    dt = datetime.fromisoformat(str(timestamp))  # parse the string into datetime
-    time= dt.strftime("%H%M")
-    new_dt = dt + timedelta(minutes=15)
-    
-    if results_fuel["score"] == 3 and results_hostiles[0] == 4:
-       return f"Push {friendly} {time} "
-    if results_fuel["score"] == 3 and results_hostiles[0] < 4:
-       dt = datetime.fromisoformat(str(timestamp))  # parse the string into datetime
-       new_dt = dt + timedelta(minutes=10)
-       mission_time = new_dt.strftime("%H%M")
-       return f"push {results_support} {time}, Push {friendly} {mission_time} "
-    if results_fuel["score"] == 2 and results_hostiles[0] < 4:
-       dt = datetime.fromisoformat(str(timestamp))  
-       new_dt = dt + timedelta(minutes=10)
-       support_time = new_dt.strftime("%H%M")
-        
-       new2_dt = dt + timedelta(minutes=20)
-       mission_time = new2_dt.strftime("%H%M")
-       return f"push {results_fuel["tanker_callsign"]} {time}, push {results_support} {support_time}, push {friendly} {mission_time} "
-    
-    # see if tankers are needed -> results_fuel
-    
-    # see if hostiles are in route -> results_hostiles
-    #     if yes identify support -> results support 
+def make_timeline(friendly, results_hostiles, results_fuel, results_support, timestamp):
+    # Parse timestamp into datetime
+    dt = datetime.fromisoformat(str(timestamp))  
+    time = dt.strftime("%H%M")
+    support_time = (dt + timedelta(minutes=10)).strftime("%H%M")
+    mission_time = (dt + timedelta(minutes=20)).strftime("%H%M")
 
-    # push out friendly 
+    tanker = results_fuel["tanker_callsign"]
+    support = results_support
+    fuel_score = results_fuel["score"]
+    hostile_score = results_hostiles[0]
+
+    if fuel_score == 4 and hostile_score == 4:
+        return f"Push {friendly} {time}"
+    
+    if fuel_score in (2, 3) and hostile_score == 4:
+        return f"Push {tanker} {time}, Push {friendly} {support_time}"
+    
+    if fuel_score == 4 and hostile_score < 4:
+        return f"Push {support} {time}, Push {friendly} {support_time}"
+    
+    if fuel_score in (2, 3) and hostile_score < 4:
+        return f"Push {tanker} {time}, Push {support} {support_time}, Push {friendly} {mission_time}"
+    
+    return None
