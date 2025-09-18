@@ -1,13 +1,16 @@
-# time_to_target.py
+"""time_to_target.py"""
+
+# pylint: disable=W0613
+
 import database
-import json
+import pandas as pd
 
 # groundspeed = meters / second
 
 
 def compute_time(friendly, target):
-    import pandas as pd
-    
+    """calculate time to target"""
+
     distance = float(friendly["distance_km"]) * 1000  # convert to meters
     groundspeed_data = database.get_groundspeed(friendly["bc3_jtn"])
 
@@ -27,5 +30,4 @@ def compute_time(friendly, target):
     else:
         risk = 1
 
-    return float(time), risk
-
+    return risk, float(time)
