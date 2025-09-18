@@ -91,7 +91,8 @@ def query_ew() -> list:
             SELECT * FROM bc3_with_all_vw
             WHERE aircraft_type IN (%s, %s, %s, %s, %s)
             AND bc3_jtn IS NOT NULL
-            AND bc3_jtn != '[null]';
+            AND bc3_jtn != '[null]'
+            AND trackid = 'Friend';
         """
         params = ("EA18G", "EC-130", "EA37B", "RC135VW", "RC-135")
         with conn.cursor() as cur:

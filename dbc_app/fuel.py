@@ -252,7 +252,7 @@ def analyze_fuel(friendly, target):
     distance_to_target, distance_to_origin = midpoint_for_target(midpoint_calc, parse_track_info(target), asset_lat, asset_long)
 
     if can_make_round_trip(current_fuel, aircraft_consumption_rate[0], distance, groundspeed):
-            return build_report(4, nearest_tanker)  # Can make it with current fuel
+            return 4  # Can make it with current fuel
     elif can_make_round_trip(current_fuel, aircraft_consumption_rate[0], distance_to_tanker, groundspeed):
             # Can make it to the tanker
             if can_make_tanker_trip(aircraft_max, aircraft_consumption_rate[0], (distance_to_target + distance + distance_to_origin), groundspeed):
