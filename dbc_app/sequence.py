@@ -3,7 +3,7 @@
 
 def make_timeline(friendly, target, results_amament, results_hostiles, results_fuel, results_time, results_support, timestamp):
     # get hour/minute from timestamp i.e. 2315
-    print(timestamp) 
+    # print(timestamp) 
 
     # see if tankers are needed -> results_fuel
 
@@ -11,4 +11,4 @@ def make_timeline(friendly, target, results_amament, results_hostiles, results_f
     #     if yes identify support -> results support 
 
     # push out friendly 
-
+    return

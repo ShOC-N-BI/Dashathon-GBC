@@ -48,12 +48,12 @@ def evaluate_aircraft(friendly, target, message, timestamp):
     # 1. Weapon Viability
     # values - 4 valid weapon pair, 3 asset weapon not 90% effective, 2 asset weapon no options, 1 missing asset or target domain
     results_amament = armament.check_armaments(friendly, target)
-    print(f'armament: {results_amament}')
+    #print(f'armament: {results_amament}')
 
     # 2. Hostile Threat Evaluation
     # values - 4 = no hostiles, 3 and below = yes hostiles [details follow]
     results_hostiles = hostiles.evaluate_threat(friendly, target)
-    print(f'hostiles: {results_hostiles}')
+    #print(f'hostiles: {results_hostiles}')
 
     # 3. Fuel Analysis
     # values - 3 = no refuel needed, 2 = refuel needed [details follow], 1 = undetermined [details follow]
@@ -67,7 +67,7 @@ def evaluate_aircraft(friendly, target, message, timestamp):
 
     # 5. Supporting Assets 
     results_support = support.gather_support(friendly, target, results_hostiles)
-    print(f'support: {results_support}')
+    #print(f'support: {results_support}')
 
     #6. Generate sequence 
     results_sequence = sequence.make_timeline(friendly, target, results_amament, results_hostiles, results_fuel, results_time, results_support, timestamp)

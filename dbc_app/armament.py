@@ -653,6 +653,6 @@ if __name__ == "__main__":
     }]
 
     json_payload = check_armaments(friendly_assets, enemy)
-    print(json_payload)  # already pretty-printed
+    #print(json_payload)  # already pretty-printed
 
     
