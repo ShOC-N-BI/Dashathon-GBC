@@ -87,7 +87,7 @@ def generate(armament, hostiles, fuel, time, support, sequence, message, friendl
     line_cuatro = line_four(hostiles)
     # line 5 = expanded support
 
-    final_five_line = f"{line_uno}\n{line_cuatro}"
+    final_five_line = f"LINE 1: {line_uno}\nLINE 4: {line_cuatro}"
     
 
     return final_five_line
