@@ -51,17 +51,17 @@ def evaluate_aircraft(friendly, target, message, timestamp):
     # 2. Hostile Threat Evaluation
     # values - 4 = no hostiles, 3 and below = yes hostiles [details follow]
     results_hostiles = hostiles.evaluate_threat(friendly, target)
-    print(f'hostiles: {results_hostiles}')
+    # print(f'hostiles: {results_hostiles}')
 
     # 3. Fuel Analysis
     # values - 3 = no refuel needed, 2 = refuel needed [details follow], 1 = undetermined [details follow]
     results_fuel = fuel.analyze_fuel(friendly, target)
-    print(f'fueld: {results_fuel}')
+    # print(f'fueld: {results_fuel}')
 
     # 4. Time Analysis
     # values - in minutes
     results_time = time_to_target.compute_time(friendly, target)
-    print(f'time: {results_time}')
+    # print(f'time: {results_time}')
 
     # 5. Supporting Assets 
     # values - 2 = yes support [values follow ], 1 = no support
@@ -72,7 +72,8 @@ def evaluate_aircraft(friendly, target, message, timestamp):
 
     #7. Assess risk and Build 5-Line
      
-    results = fiveline.generate(results_amament, results_hostiles, results_fuel, results_time, results_support, results_sequence, message)
+    results = fiveline.generate(results_amament, results_hostiles, results_fuel, results_time, results_support, results_sequence, message, friendly, target)
+    print(results)
 
     return results
 
