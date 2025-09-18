@@ -51,7 +51,7 @@ def evaluate_aircraft(friendly, target, message, timestamp):
     # 2. Hostile Threat Evaluation
     # values - 4 = no hostiles, 3 and below = yes hostiles [details follow]
     results_hostiles = hostiles.evaluate_threat(friendly, target)
-    # print(f'hostiles: {results_hostiles}')
+    print(f'hostiles: {results_hostiles}')
 
     # 3. Fuel Analysis
     # values - 3 = no refuel needed, 2 = refuel needed [details follow], 1 = undetermined [details follow]
