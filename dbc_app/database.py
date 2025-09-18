@@ -34,15 +34,84 @@ red_maritime_del_s2s = "red_maritime_deliverables_surf_to_surf"
 bc3_with_all_vw = "bc3_with_all_vw"
 entity = "pae_data"
 
+def query_assets(column: str, operator:str, filter: str) -> list:
+    results = []
+    try:
+        # Connect to PostgreSQL
+        conn = psycopg2.connect(
+            host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
+        )
+
+        # Use parameterized query to prevent SQL injection
+        query = f"SELECT * FROM {bc3_with_all_vw} WHERE {column} {operator} '{filter}' AND aircraft_type NOT LIKE 'DIS(265)';"
+        with conn.cursor() as cur:
+            cur.execute(query,)
+            columns = [desc[0] for desc in cur.description]
+            for row in cur.fetchall():
+                results.append(dict(zip(columns, row)))
+    except Exception as e:
+        print("Error:", e)
+    finally:
+        if 'conn' in locals():
+            conn.close()
+    return results
+
+def query_awacs() -> list:
+    results = []
+    try:
+        conn = psycopg2.connect(
+            host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
+        )
+        query = """
+            SELECT * FROM bc3_with_all_vw
+            WHERE aircraft_type IN (%s, %s, %s, %s, %s)
+            AND bc3_jtn IS NOT NULL
+            AND bc3_jtn != '[null]';
+        """
+        params = ("E-3", "E3", "E7", "E-2C", "E2D")
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+            columns = [desc[0] for desc in cur.description]
+            for row in cur.fetchall():
+                results.append(dict(zip(columns, row)))
+    except Exception as e:
+        print("Error:", e)
+    finally:
+        if 'conn' in locals():
+            conn.close()
+    return results
+
+def query_ew() -> list:
+    results = []
+    try:
+        conn = psycopg2.connect(
+            host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
+        )
+        query = """
+            SELECT * FROM bc3_with_all_vw
+            WHERE aircraft_type IN (%s, %s, %s, %s, %s)
+            AND bc3_jtn IS NOT NULL
+            AND bc3_jtn != '[null]'
+            AND trackid = 'Friend';
+        """
+        params = ("EA18G", "EC-130", "EA37B", "RC135VW", "RC-135")
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+            columns = [desc[0] for desc in cur.description]
+            for row in cur.fetchall():
+                results.append(dict(zip(columns, row)))
+    except Exception as e:
+        print("Error:", e)
+    finally:
+        if 'conn' in locals():
+            conn.close()
+    return results
+
 def query_tankers() -> list:
     results = []
     try:
         conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD
+            host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
         )
         query = """
             SELECT * FROM bc3_with_all_vw
@@ -50,7 +119,7 @@ def query_tankers() -> list:
             AND bc3_jtn IS NOT NULL
             AND bc3_jtn != '[null]';
         """
-        params = ("KC-135", "KC-10", "KC-46")
+        params = ("KC-135", "KC135", "KC46")
         with conn.cursor() as cur:
             cur.execute(query, params)
             columns = [desc[0] for desc in cur.description]
@@ -72,11 +141,7 @@ def query_friendly_asset(bc3_jtn: str) -> pd.DataFrame:
     try:
         # Connect to PostgreSQL
         conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD
+            host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
         )
 
         # Use parameterized query to prevent SQL injection
@@ -98,11 +163,7 @@ def query_mef():
     try:
         # Connect to PostgreSQL
         conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD,
+            host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
         )
         query = f"SELECT * FROM {mef_data} order by timestamp desc limit 1;"
         df_mef_data = pd.read_sql(query, conn)

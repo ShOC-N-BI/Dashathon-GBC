@@ -357,10 +357,10 @@ def _reduce_matches_by_friendly(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
 
     # Coerce to numeric for reliable comparisons/sorting
-    out["total_effectiveness_percent"] = pd.to_numeric(out.get("total_effectiveness_percent"), errors="coerce")
-    out["qty_needed_for_90"]          = pd.to_numeric(out.get("qty_needed_for_90"), errors="coerce")
-    out["effectiveness"]              = pd.to_numeric(out.get("effectiveness"), errors="coerce")
-    out["qty"]                        = pd.to_numeric(out.get("qty"), errors="coerce")
+    out["total_effectiveness_percent"] = pd.to_numeric(out["total_effectiveness_percent"], errors="coerce")
+    out["qty_needed_for_90"]          = pd.to_numeric(out["qty_needed_for_90"], errors="coerce")
+    out["effectiveness"]              = pd.to_numeric(out["effectiveness"], errors="coerce")
+    out["qty"]                        = pd.to_numeric(out["qty"], errors="coerce")
 
     # Preserve original columns + new combined metrics
     cols = out.columns.tolist()
@@ -452,16 +452,13 @@ def _reduce_matches_by_friendly(df: pd.DataFrame) -> pd.DataFrame:
 
 # ----------------------------- Execution -----------------------------
 
-def check_armaments(friendly_assets: Any, enemy_data: Any) -> Tuple[int, pd.DataFrame]:
+def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
     """
-    Returns:
-      app_code, df_arm_results
-
-    app_code:
-      1 = either the enemy domain can't be determined OR no friendly asset domain could be determined
-      2 = classification ok but no matched weapons for any asset
-      3 = matches exist but neither any individual total_effectiveness_percent nor any combined_total_effectiveness_percent reaches ≥90%
-      4 = everything else (i.e., at least one result reaches ≥90% or normal successful case)
+    Returns a JSON string:
+      {
+        "app_code": <int>,
+        "results": [ { row... }, ... ]
+      }
     """
     # Normalize friendlies
     friendly_list = _ensure_friendly_list(friendly_assets)
@@ -477,17 +474,20 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> Tuple[int, pd.Data
     # Early exit if enemy side undetermined
     if not enemy_side:
         msg = "Could not determine enemy side/domain."
-        # Return a minimal DF with a note
         df_arm_results = pd.DataFrame([{
             "friendly_id": None, "weapon": None, "weapon_base_code": None, "qty": None,
             "effectiveness": None, "range": None, "alt_low": None, "alt_high": None,
             "speed": None, "dependencies": None,
             "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
-            # "risk_score": 0,  # risk score disabled
             "note": msg,
-            "combined_total_effectiveness_percent": None, "qty_used": None
+            "combined_total_effectiveness_percent": None, "qty_used": None,
+            "ea_deliverables": None, "comm_deliverables": None, "sens_deliverables": None
         }])
-        return 1, df_arm_results
+        payload = {
+            "app_code": 1,
+            "results": df_arm_results.where(pd.notnull(df_arm_results), None).to_dict("records")
+        }
+        return json.dumps(payload, indent=2)
 
     for asset in friendly_list:
         if not isinstance(asset, dict):
@@ -495,16 +495,18 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> Tuple[int, pd.Data
 
         fid = asset.get("callsign")
         fside = classify_friendly_side(asset)
+        f_ed_del = asset.get("ea_deliverables")
+        comm_del = asset.get("comm_deliverables")
+        sens_del = asset.get("sensing_deliverables")
         if not fside:
-            # Skip but keep a note row for visibility
             rows.append({
                 "friendly_id": fid, "weapon": None, "weapon_base_code": None, "qty": None,
                 "effectiveness": None, "range": None, "alt_low": None, "alt_high": None,
                 "speed": None, "dependencies": None,
                 "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
-                # "risk_score": 0,  # risk score disabled
                 "note": "Could not determine friendly asset side/domain.",
-                "combined_total_effectiveness_percent": None, "qty_used": None
+                "combined_total_effectiveness_percent": None, "qty_used": None,
+                "ea_deliverables": None, "comm_deliverables": None, "sens_deliverables": None
             })
             continue
         classified_any_friendly = True
@@ -516,16 +518,15 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> Tuple[int, pd.Data
         cat_df = cache[key]
         weapons = parse_weapons_field(asset.get("weapon"))
 
-        # If no parseable weapons, add a single note row and continue
         if not weapons:
             rows.append({
                 "friendly_id": fid, "weapon": None, "weapon_base_code": None, "qty": None,
                 "effectiveness": None, "range": None, "alt_low": None, "alt_high": None,
                 "speed": None, "dependencies": None,
                 "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
-                # "risk_score": 0,  # risk score disabled
                 "note": "No parseable weapons provided.",
-                "combined_total_effectiveness_percent": None, "qty_used": None
+                "combined_total_effectiveness_percent": None, "qty_used": None,
+                "ea_deliverables": None, "comm_deliverables": None, "sens_deliverables": None
             })
             continue
 
@@ -541,7 +542,7 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> Tuple[int, pd.Data
         for w in weapons:
             match = _match_single_weapon(w, cat_df)
             if match is None:
-                continue  # try next weapon
+                continue
 
             matched_any_this_asset = True
             matched_any_overall = True
@@ -560,9 +561,11 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> Tuple[int, pd.Data
                 "note": None,
                 "combined_total_effectiveness_percent": None,
                 "qty_used": None,
+                "ea_deliverables": f_ed_del,
+                "comm_deliverables": comm_del,
+                "sens_deliverables": sens_del
             }
 
-            # Compute cumulative effectiveness vs. the provided qty and stash details
             if _val_present(row.get("effectiveness")) and isinstance(row.get("qty"), (int, float)):
                 total_percent, qty_needed, need_more = qty_to_reach_threshold(
                     row.get("effectiveness"), row.get("qty"), threshold=0.9
@@ -572,50 +575,49 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> Tuple[int, pd.Data
                 if need_more:
                     row["needs_more_note"] = need_more
 
-            # Score (disabled)
-            # row["risk_score"] = risk_assessment(row)
             rows.append(row)
 
-        # After trying all weapons: if none matched, add one note row for this asset
         if not matched_any_this_asset:
             rows.append({
                 "friendly_id": fid, "weapon": None, "weapon_base_code": None, "qty": None,
                 "effectiveness": None, "range": None, "alt_low": None, "alt_high": None,
                 "speed": None, "dependencies": None,
                 "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
-                # "risk_score": 0,  # risk score disabled
                 "note": "The asset has no armaments that meet the criteria of this engagement.",
-                "combined_total_effectiveness_percent": None, "qty_used": None
+                "combined_total_effectiveness_percent": None, "qty_used": None,
+                "ea_deliverables": None, "comm_deliverables": None, "sens_deliverables": None
             })
 
-    # If we never classified any friendly side at all -> code 1
     if not classified_any_friendly:
         df_arm_results = pd.DataFrame(rows, columns=[
             "friendly_id","weapon","weapon_base_code","qty",
             "effectiveness","range","alt_low","alt_high","speed","dependencies",
             "total_effectiveness_percent","qty_needed_for_90","needs_more_note","note",
-            "combined_total_effectiveness_percent","qty_used"
+            "combined_total_effectiveness_percent","qty_used","ea_deliverables","comm_deliverables","sens_deliverables"
         ])
-        return 1, df_arm_results
+        payload = {
+            "app_code": 1,
+            "results": df_arm_results.where(pd.notnull(df_arm_results), None).to_dict("records")
+        }
+        return json.dumps(payload, indent=2)
 
-    # Build DF before reduction
     df_arm_results = pd.DataFrame(rows, columns=[
         "friendly_id","weapon","weapon_base_code","qty",
         "effectiveness","range","alt_low","alt_high","speed","dependencies",
         "total_effectiveness_percent","qty_needed_for_90","needs_more_note","note",
-        "combined_total_effectiveness_percent","qty_used"
+        "combined_total_effectiveness_percent","qty_used","ea_deliverables","comm_deliverables","sens_deliverables"
     ])
 
-    # If absolutely no matches anywhere -> code 2
     if not matched_any_overall:
-        # Still run reducer (it will mostly pass notes through), but app_code is 2
         df_arm_results = _reduce_matches_by_friendly(df_arm_results)
-        return 2, df_arm_results
+        payload = {
+            "app_code": 2,
+            "results": df_arm_results.where(pd.notnull(df_arm_results), None).to_dict("records")
+        }
+        return json.dumps(payload, indent=2)
 
-    # Reduce with your rules (may mark combined plan rows and fill combined_total_effectiveness_percent/qty_used)
     df_arm_results = _reduce_matches_by_friendly(df_arm_results)
 
-    # Determine app_code: any outcome reaches ≥90% (single or combined)?
     reached_90_any = False
     if "total_effectiveness_percent" in df_arm_results.columns:
         reached_90_any = reached_90_any or pd.to_numeric(
@@ -628,7 +630,12 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> Tuple[int, pd.Data
         ).ge(90.0).any()
 
     app_code = 4 if reached_90_any else 3
-    return app_code, df_arm_results
+    payload = {
+        "app_code": app_code,
+        "results": df_arm_results.where(pd.notnull(df_arm_results), None).to_dict("records")
+    }
+    return json.dumps(payload, indent=2)
+
 
 
 
@@ -637,12 +644,15 @@ if __name__ == "__main__":
     enemy = { "id": 43826, "CallSign": None, "Track Cat": "Air", "Track ID": "Hostile", "Aircraft Type": None }
     friendly_assets = [{
         "callsign": "HARPY 02",
-        "weapon": "2XAIM-9, 4XAIM-120, 4XGBU-53 SD",
+        "weapon": "2XAIM-9, 3XAIM-120, 4XGBU-53 SD",
         "aircraft_type": "F-A-22",
-        "trackcategory": "air"
+        "trackcategory": "air",
+        "comm_deliverables": "VHF, UHF, Comm Sat",
+        "sensing_deliverables": "AMTI, IMINT 1, ELINT 1",
+        "ea_deliverables": "Responsive Noise, DRFM"
     }]
 
-    app_code, df = check_armaments(friendly_assets, enemy)
-    print("app_code:", app_code)
-    with pd.option_context("display.max_columns", None, "display.width", 160):
-        print(df.head(20))
+    json_payload = check_armaments(friendly_assets, enemy)
+    print(json_payload)  # already pretty-printed
+
+    
