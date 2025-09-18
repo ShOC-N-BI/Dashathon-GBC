@@ -20,7 +20,8 @@ import armament
 import sequence
 import hostiles
 import fuel
-import time_to_target  
+import time_to_target 
+import support 
 import database
 import json
 import warnings
@@ -65,8 +66,8 @@ def evaluate_aircraft(friendly, target, message, timestamp):
     print(f'time: {results_time}')
 
     # 5. Supporting Assets 
-    # values - 2 = yes support [values follow ], 1 = no support
-    results_support = None #support.gather_support(friendly, target, results_amament, result_hostiles)
+    results_support = support.gather_support(friendly, target, results_hostiles)
+    print(f'support: {results_support}')
 
     #6. Generate sequence 
     results_sequence = sequence.make_timeline(friendly, target, results_amament, results_hostiles, results_fuel, results_time, results_support, timestamp)
