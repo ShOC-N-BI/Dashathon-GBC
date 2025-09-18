@@ -8,12 +8,12 @@ def make_timeline(friendly, results_hostiles, results_fuel, results_support, tim
     mission_time = (dt + timedelta(minutes=20)).strftime("%H%M")
     asset = friendly["callsign"]
     tanker = results_fuel["tanker_callsign"]
+
     if results_support and "escort" in results_support:
       support = results_support["escort"].get("callsign", "")
 
     else:
       support = ""
-
 
     fuel_score = results_fuel["score"]
     hostile_score = results_hostiles[0]
@@ -30,4 +30,5 @@ def make_timeline(friendly, results_hostiles, results_fuel, results_support, tim
     if fuel_score in (2, 3) and hostile_score < 4:
         return f"Push {tanker} {time}, Push {support} {support_time}, Push {asset} {mission_time}"
     
-    return "N/A"
+    else:
+       return "N/A"
