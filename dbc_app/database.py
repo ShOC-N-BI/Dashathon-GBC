@@ -567,7 +567,7 @@ def get_groundspeed(identifier: str) -> pd.DataFrame:
             user=DB_USER,
             password=DB_PASSWORD,
         )
-        query = f"SELECT * FROM {bc3_with_all_vw} WHERE bc3_jtn::int = %s;"
+        query = f"SELECT * FROM {bc3_with_all_vw} WHERE bc3_jtn = %s;"
         groundspeed = pd.read_sql(query, conn, params=(identifier,))
     except Exception as e:
         print("Error:", e)
