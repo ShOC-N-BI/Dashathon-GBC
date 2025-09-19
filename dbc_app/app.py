@@ -71,7 +71,7 @@ def evaluate_aircraft(friendly, target, message, timestamp):
     #print(f'support: {results_support}')
 
     #6. Generate sequence 
-    results_sequence = sequence.make_timeline(friendly, target, results_amament, results_hostiles, results_fuel, results_time, results_support, timestamp)
+    results_sequence = sequence.make_timeline(friendly, results_hostiles, results_fuel, results_support, timestamp)
 
     #7. Assess risk and Build 5-Line
     results = fiveline.generate(results_amament, results_hostiles, results_fuel, results_time, results_support, results_sequence, message, friendly, target)
