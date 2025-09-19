@@ -159,7 +159,7 @@ def gather_support(friendly, target, hostiles):
     fuel_report = []
 
     if hostile_code < 4:
-        escort_report = find_escort(friendly, hostile_data, target_data)
+        escort_report = find_escort(friendly, len(hostile_data), target_data)
         for item in escort_report["escort"]:
             fuel_report.append(fuel.analyze_fuel(item, target))
         escorts = escort_report["escort"]

@@ -76,6 +76,8 @@ def evaluate_aircraft(friendly, target, message, timestamp):
 
     #7. Assess risk and Build 5-Line
     results = fiveline.generate(results_amament, results_hostiles, results_fuel, results_time, results_support, results_sequence, message, friendly, target)
+    print(results)
+    print("WORKS")
 
     return results
 
