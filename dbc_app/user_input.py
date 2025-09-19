@@ -1,60 +1,69 @@
-import database 
+import database
 import math
+import json
 
-user_input = database.query_df_user_input()
+# Load data
+user_input = database.query_user_input()
 bc3_all = database.query_bc3_with_all_vw()
+bc3_friends = database.query_bc3_friends_vw()
 
 
 def haversine(lat1, lon1, lat2, lon2):
-    """
-    Calculate the great-circle distance between two points on the Earth in km.
-    """
-    R = 6371  # Earth radius in km
+    R = 6371
     phi1 = math.radians(lat1)
     phi2 = math.radians(lat2)
     delta_phi = math.radians(lat2 - lat1)
     delta_lambda = math.radians(lon2 - lon1)
-
-    a = math.sin(delta_phi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda/2)**2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    a = math.sin(delta_phi / 2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(delta_lambda/2)**2
+    c = 2*math.atan2(math.sqrt(a), math.sqrt(1-a))
     return R * c
 
-def create_action():
-    for a in user_input.itertuples(index=False):
-        for row in bc3_all.itertuples(index=False):  # iterate as namedtuples
-            if a.asset_tn == row.tracknumber:
-                action = {
-                    "lat": row.latitude,
-                    "lon": row.longitude,
-                    "weapon": row.weapon,
-                    "bc3_jtn": row.bc3_jtn,
-                    "callsign": row.callsign,
-                    "distance_km": "haversine()",
-                    "aircraft_type": row.aircraft_type,
-                    "trackcategory": row.trackcategory,
-                    "ea_deliverables": "-",
-                    "matched_actions": [a.battle_effect],
-                    "comm_deliverables": "HF, VHF, UHF, Comm Sat",
-                    "merged_tracknumber": row.tracknumber,
-                    "sensing_deliverables": "-"
-                }
-                return action  # immediately return the first match
-    return {}  # return empty dict if no match found
 
+# Process each user_input row individually
+for a in user_input.itertuples(index=False):
+    # Find asset and entity
+    asset = next((row for row in bc3_friends.itertuples(index=False)
+                  if a.asset_tn == row.merged_tracknumber), None)
+    entity_row = next((row for row in bc3_all.itertuples(index=False)
+                       if a.target_tn == row.tracknumber), None)
 
+    if asset and entity_row:
+        # Compute distance
+        distance = haversine(asset.latitude, asset.longitude, entity_row.latitude, entity_row.longitude)
 
-def create_entity():
-     for a in user_input.itertuples(index=False):
-        for row in bc3_all.itertuples(index=False):  # iterate as namedtuples
-            if a.target_tn == row.tracknumber:
-                entity = f"44073 (CallSign: {row.callsign} , Track Cat: {row.trackcategory}, Track ID: {row.trackid}, Aircraft Type: {row.aircraft_type}, Lattitude: {row.latitude}, Longitude: {row.longitude})"
+        # Define separate variables for this row
+        action = {
+            "lat": asset.latitude,
+            "lon": asset.longitude,
+            "weapon": asset.munition_deliverables,
+            "bc3_jtn": asset.bc3_jtn,
+            "callsign": asset.callsign,
+            "distance_km": distance,
+            "aircraft_type": asset.aircraft_type,
+            "trackcategory": asset.trackcategory,
+            "ea_deliverables": asset.ea_deliverables,
+            "matched_actions": [a.battle_effect],
+            "comm_deliverables": asset.comm_deliverables,
+            "merged_tracknumber": asset.merged_tracknumber,
+            "sensing_deliverables": asset.sensing_deliverables,
+        }
 
-                
-     return entity
+        entity = (
+            f"{a.target_tn} (CallSign: {entity_row.callsign}, Track Cat: {entity_row.trackcategory}, "
+            f"Track ID: {entity_row.trackid}, Aircraft Type: {entity_row.aircraft_type}, "
+            f"Latitude: {entity_row.latitude}, Longitude: {entity_row.longitude})"
+        )
 
-actions =create_action()
-entity = create_entity()
+        timestamp = a.timestamp
 
-print(actions)
-print(entity)
+        # Check duplicates in DB
+        if not database.record_exists(asset.merged_tracknumber, a.target_tn):
+            database.insert_data(entity, json.dumps(action), "text", timestamp)
+        else:
+            print(f"Skipping duplicate: Asset {asset.merged_tracknumber}, Target {a.target_tn}")
 
+        # You can now use these variables individually in your code
+        # For example:
+        # print(entity)
+        # print(action)
+        # print(timestamp)

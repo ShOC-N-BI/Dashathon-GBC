@@ -35,6 +35,7 @@ red_maritime_del_s2s = "red_maritime_deliverables_surf_to_surf"
 bc3_with_all_vw = "bc3_with_all_vw"
 entity = "pae_data"
 user_input = "user_input"
+bc3_friends_vw = "bc3_friends_vw"
 
 def insert_data(entity:str, actions, message, timestamp) -> list:
     print(timestamp)
@@ -521,7 +522,7 @@ def query_bc3_with_all_vw():
 
     return df_bc3_with_all_vw 
 
-def query_df_user_input():
+def query_user_input():
     df_user_input = pd.DataFrame()
     try:
         # Create SQLAlchemy engine
@@ -536,6 +537,22 @@ def query_df_user_input():
         print("Error:", e)
 
     return df_user_input 
+
+def query_bc3_friends_vw():
+    df_bv3_friends_vw = pd.DataFrame()
+    try:
+        # Create SQLAlchemy engine
+        engine = create_engine(
+            f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        )
+
+        query = f"SELECT * FROM {bc3_friends_vw};"
+        df_bv3_friends_vw = pd.read_sql(query, con=engine)
+
+    except Exception as e:
+        print("Error:", e)
+
+    return df_bv3_friends_vw 
 
 def get_groundspeed(identifier: str) -> pd.DataFrame:
     # print(identifier)

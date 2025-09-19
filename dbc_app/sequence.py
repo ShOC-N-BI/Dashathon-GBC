@@ -10,15 +10,21 @@ def make_timeline(friendly, results_hostiles, results_fuel, results_support, tim
     support_time = (dt + timedelta(minutes=10)).strftime("%H%M")
     mission_time = (dt + timedelta(minutes=20)).strftime("%H%M")
     asset = friendly["callsign"]
-    tanker = results_fuel["tanker_callsign"]
-    support_list = (results_support or {}).get("escort") or []
+    tanker = results_fuel.get("tanker_callsign", "") if isinstance(results_fuel, dict) else ""
+
+    if isinstance(results_support, dict):
+        support_list = results_support.get("escort") or []
+    else:
+        support_list = []
+
     support = " ".join(
-    d.get("callsign") or d.get("bc3_jtn", "")
-    for d in support_list if d is not None)
+        d.get("callsign") or d.get("bc3_jtn", "")
+        for d in support_list
+        if isinstance(d, dict)
+    )
+    
+    fuel_score = results_fuel if isinstance(results_fuel, int) else (results_fuel[0] if isinstance(results_fuel, list) and results_fuel else 0)
 
-
-
-    fuel_score = results_fuel["score"]
     hostile_score = results_hostiles[0]
     
     if fuel_score == 4 and hostile_score == 4:
