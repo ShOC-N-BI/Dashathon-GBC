@@ -71,6 +71,7 @@ def find_tankers(friendly):
 
 # Edit for different 
 def find_escort(friendly, hostile, target):
+    
     escort_list = database.query_assets("weapon","ILIKE", "%AIM-120%")
     escort_distances = []
 
@@ -84,7 +85,6 @@ def find_escort(friendly, hostile, target):
     escort_distances.sort(key=lambda x: x[0])
 
     # Select top n + 1 closest escorts
-    print(escort_distances)
     nearest_escort = [row for _, row in escort_distances[:hostile + 1]]
     escort_report = {
         "escort": [

@@ -3,6 +3,7 @@ import psycopg2
 import pandas as pd
 from sqlalchemy import create_engine
 from dotenv import load_dotenv
+import datetime
 import os
 import json
 
@@ -34,6 +35,45 @@ red_maritime_del_drone = "red_maritime_deliverables_drone"
 red_maritime_del_s2s = "red_maritime_deliverables_surf_to_surf"
 bc3_with_all_vw = "bc3_with_all_vw"
 entity = "pae_data"
+user_input = "user_input"
+bc3_friends_vw = "bc3_friends_vw"
+
+def insert_data(entity: str, actions, message, timestamp) -> None:
+    print(timestamp)
+    try:
+        conn = psycopg2.connect(
+            host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
+        )
+        query = "INSERT INTO mef_data_testing (entity, actions, message, timestamp) VALUES (%s, %s, %s, %s);"
+        params = (entity, actions, message, timestamp)  # <-- fixed here
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+        conn.commit()  # don't forget to commit
+        print(f"{entity},{actions},{ message},{timestamp}")
+    except Exception as e:
+        print("Error:", e)
+    finally:
+        if conn:
+            conn.close()
+    
+def query_user_input() -> list:
+    results = []
+    try:
+        conn = psycopg2.connect(
+            host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
+        )
+        query = f"""
+            SELECT * FROM user_input;
+        """
+        df = pd.read_sql(query, conn,)
+        results = df.iloc[0].to_dict()
+
+    except Exception as e:
+        print("Error:", e)
+    finally:
+        if 'conn' in locals():
+            conn.close()
+    return results
 
 
 def push_coa_to_db(target_aircraft_id: str, coa: str, target_message: str, target_time: str, table_name: str = "gronemeier_frontend_testing"):
@@ -509,9 +549,39 @@ def query_bc3_with_all_vw():
     except Exception as e:
         print("Error:", e)
 
-    return df_bc3_with_all_vw
+    return df_bc3_with_all_vw 
 
+def query_user_input():
+    df_user_input = pd.DataFrame()
+    try:
+        # Create SQLAlchemy engine
+        engine = create_engine(
+            f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        )
 
+        query = f"SELECT * FROM {user_input} order by timestamp desc limit 1;"
+        df_user_input = pd.read_sql(query, con=engine)
+
+    except Exception as e:
+        print("Error:", e)
+
+    return df_user_input 
+
+def query_bc3_friends_vw():
+    df_bv3_friends_vw = pd.DataFrame()
+    try:
+        # Create SQLAlchemy engine
+        engine = create_engine(
+            f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        )
+
+        query = f"SELECT * FROM {bc3_friends_vw};"
+        df_bv3_friends_vw = pd.read_sql(query, con=engine)
+
+    except Exception as e:
+        print("Error:", e)
+
+    return df_bv3_friends_vw 
 
 def get_groundspeed(identifier: str) -> pd.DataFrame:
     # print(identifier)
@@ -533,3 +603,25 @@ def get_groundspeed(identifier: str) -> pd.DataFrame:
         if "conn" in locals():
             conn.close()
     return groundspeed
+
+import pandas as pd
+from sqlalchemy import create_engine
+
+from sqlalchemy import create_engine, text
+
+def record_exists(asset_tn, target_tn):
+    try:
+        # Create SQLAlchemy engine
+        engine = create_engine(
+            f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        )
+
+        query = text("SELECT EXISTS (SELECT 1 FROM user_input WHERE asset_tn = :asset AND target_tn = :target);")
+        with engine.connect() as conn:
+            result = conn.execute(query, {"asset": asset_tn, "target": target_tn}).scalar()
+            print(result)
+            return result
+
+    except Exception as e:
+        print("Error checking record existence:", e)
+        return False

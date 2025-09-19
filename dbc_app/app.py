@@ -26,7 +26,7 @@ import database
 import json
 import warnings
 import re
-
+import user_input
 warnings.filterwarnings("ignore")
 
 # === Main Workflow ===
@@ -43,8 +43,8 @@ def evaluate_aircraft(friendly, target, message, timestamp):
     """
     results = {}
 
-    # print(target)
-    # print(friendly)
+    print(target)
+    print(friendly)
 
     # 1. Weapon Viability
     # values - 4 valid weapon pair, 3 asset weapon not 90% effective, 2 asset weapon no options, 1 missing asset or target domain
@@ -68,6 +68,7 @@ def evaluate_aircraft(friendly, target, message, timestamp):
 
     # 5. Supporting Assets 
     results_support = support.gather_support(friendly, target, results_hostiles)
+    # results_support = None
     #print(f'support: {results_support}')
 
     #6. Generate sequence 
@@ -87,7 +88,9 @@ def main():
     - Print or log final summary for all aircraft.
     """
     # Step 1: Get Data
+    user_input.insert_input()
     current_MEF = database.query_mef()
+    
     friendly_aircraft_list = current_MEF["actions"].iloc[0]  # Expect list of 3 aircraft
     # friendly_aircraft_list = json.loads(friendly_aircraft_list)
     # print(type(friendly_aircraft_list))
