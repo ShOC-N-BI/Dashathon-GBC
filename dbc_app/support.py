@@ -84,6 +84,7 @@ def find_escort(friendly, hostile, target):
     escort_distances.sort(key=lambda x: x[0])
 
     # Select top n + 1 closest escorts
+    print(escort_distances)
     nearest_escort = [row for _, row in escort_distances[:hostile + 1]]
     escort_report = {
         "escort": [
