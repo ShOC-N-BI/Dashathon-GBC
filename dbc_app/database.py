@@ -48,6 +48,7 @@ def insert_data(entity: str, actions, message, timestamp) -> None:
         with conn.cursor() as cur:
             cur.execute(query, params)
         conn.commit()  # don't forget to commit
+        print(f"{entity},{actions},{ message},{timestamp}")
     except Exception as e:
         print("Error:", e)
     finally:
@@ -531,7 +532,7 @@ def query_user_input():
             f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
         )
 
-        query = f"SELECT * FROM {user_input};"
+        query = f"SELECT * FROM {user_input} ;"
         df_user_input = pd.read_sql(query, con=engine)
 
     except Exception as e:
@@ -575,3 +576,37 @@ def get_groundspeed(identifier: str) -> pd.DataFrame:
         if "conn" in locals():
             conn.close()
     return groundspeed
+
+import pandas as pd
+from sqlalchemy import create_engine
+
+def record_exists(asset_tn: str, target_tn: str) -> bool:
+    """
+    Check if a record with the given asset and target already exists in the database.
+    Returns True if exists, False otherwise.
+    """
+    exists = False
+    try:
+        # Create SQLAlchemy engine
+        engine = create_engine(
+            f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        )
+
+        # Query the table to see if a record exists
+        query = f"""
+            SELECT 1
+            FROM mef_data_testing
+            WHERE merged_tracknumber = '{asset_tn}'
+              AND entity LIKE '%{target_tn}%'
+            LIMIT 1;
+        """
+
+        df_check = pd.read_sql(query, con=engine)
+        if not df_check.empty:
+            exists = True
+
+    except Exception as e:
+        print("Error checking record existence:", e)
+
+    return exists
+

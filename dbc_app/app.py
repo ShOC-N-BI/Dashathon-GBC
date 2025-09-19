@@ -25,7 +25,7 @@ import support
 import database
 import json
 import warnings
-
+import user_input
 warnings.filterwarnings("ignore")
 
 # === Main Workflow ===
@@ -88,7 +88,9 @@ def main():
     - Print or log final summary for all aircraft.
     """
     # Step 1: Get Data
+    user_input.insert_input()
     current_MEF = database.query_mef()
+    return
     friendly_aircraft_list = current_MEF["actions"].iloc[0]  # Expect list of 3 aircraft
     # friendly_aircraft_list = json.loads(friendly_aircraft_list)
     # print(type(friendly_aircraft_list))
