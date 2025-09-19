@@ -74,8 +74,9 @@ def evaluate_aircraft(friendly, target, message, timestamp):
 
     #7. Assess risk and Build 5-Line
      
-    results = fiveline.generate(results_amament, results_hostiles, results_fuel, results_time, results_support, results_sequence, message, friendly, target)
-    print(results)
+    #results = fiveline.generate(results_amament, results_hostiles, results_fuel, results_time, results_support, results_sequence, message, friendly, target)
+    
+    print("WORKS")
 
     return results
 
@@ -90,7 +91,7 @@ def main():
     # Step 1: Get Data
     user_input.insert_input()
     current_MEF = database.query_mef()
-    return
+
     friendly_aircraft_list = current_MEF["actions"].iloc[0]  # Expect list of 3 aircraft
     # friendly_aircraft_list = json.loads(friendly_aircraft_list)
     # print(type(friendly_aircraft_list))
