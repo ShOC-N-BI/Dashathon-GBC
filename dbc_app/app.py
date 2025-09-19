@@ -25,6 +25,7 @@ import support
 import database
 import json
 import warnings
+import re
 
 warnings.filterwarnings("ignore")
 
@@ -73,9 +74,7 @@ def evaluate_aircraft(friendly, target, message, timestamp):
     results_sequence = sequence.make_timeline(friendly, target, results_amament, results_hostiles, results_fuel, results_time, results_support, timestamp)
 
     #7. Assess risk and Build 5-Line
-     
     results = fiveline.generate(results_amament, results_hostiles, results_fuel, results_time, results_support, results_sequence, message, friendly, target)
-    print(results)
 
     return results
 
@@ -93,16 +92,30 @@ def main():
     # friendly_aircraft_list = json.loads(friendly_aircraft_list)
     # print(type(friendly_aircraft_list))
     # print(friendly_aircraft_list[0].keys())
+    
     target_aircraft = current_MEF["entity"].iloc[0]  # Expect single hostile aircraft
     target_message = current_MEF["message"].iloc[0]
     target_time = current_MEF["timestamp"].iloc[0]
 
+    # extract tracknumber
+    match = re.match(r'\s*(\d{5})', target_aircraft)
+    if match:
+        target_aircraft_id = match.group(1)
+    else:
+        target_aircraft_id = None
+
     # Step 2: Run evaluations
     all_results = {}
+    coa = []
     for idx, friendly in enumerate(friendly_aircraft_list, start=1):
-        print(f"\n=== Evaluating Friendly Aircraft {idx} ===")
+        #print(f"\n=== Evaluating Friendly Aircraft {idx} ===")
         evaluation = evaluate_aircraft(friendly, target_aircraft, target_message, target_time)
         all_results[f"Aircraft_{idx}"] = evaluation
+        coa.append(evaluation)
+
+    print(coa)
+    # Insert into DB
+    database.push_coa_to_db(target_aircraft_id, coa, target_message, target_time)
 
     return
     # Step 3: Summarize results

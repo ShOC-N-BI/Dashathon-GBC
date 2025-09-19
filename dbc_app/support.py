@@ -177,5 +177,5 @@ def gather_support(friendly, target, hostiles):
         "ew": ew,
         "sead": sead,
     }
-
+    # print(build_report)
     return build_report

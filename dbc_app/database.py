@@ -4,6 +4,7 @@ import pandas as pd
 from sqlalchemy import create_engine
 from dotenv import load_dotenv
 import os
+import json
 
 # Database connection settings
 load_dotenv()
@@ -33,6 +34,32 @@ red_maritime_del_drone = "red_maritime_deliverables_drone"
 red_maritime_del_s2s = "red_maritime_deliverables_surf_to_surf"
 bc3_with_all_vw = "bc3_with_all_vw"
 entity = "pae_data"
+
+
+def push_coa_to_db(target_aircraft_id: str, coa: str, target_message: str, target_time: str, table_name: str = "gronemeier_frontend_testing"):
+
+    try:
+        conn = psycopg2.connect(
+            host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
+        )
+        with conn.cursor() as cur:
+            insert_query = f"""
+            INSERT INTO {table_name} (entity, five_line, message, timestamp)
+            VALUES (%s, %s, %s, %s)
+            """
+
+            coa_json = json.dumps(coa)
+
+            cur.execute(insert_query, (target_aircraft_id, coa_json, target_message, target_time))
+            conn.commit()
+            print(f"Inserted COA for target {target_aircraft_id} into {table_name}")
+    except Exception as e:
+        print("Error inserting COA:", e)
+    finally:
+        if 'conn' in locals():
+            conn.close()
+
+
 
 def query_assets(column: str, operator:str, filter: str) -> list:
     results = []

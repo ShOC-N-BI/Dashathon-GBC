@@ -49,11 +49,27 @@ def line_one(friendly, target):
 
     return f"{friendly_callsign} {action} {target_callsign}"
 
-def line_two():
-    return
+def line_two(support):
+    """produces all supporting assets"""
+    support_list = []
+
+    for role, details in support.items():
+        if isinstance(details, dict):
+            callsign = details.get("callsign")
+            bc3_jtn = details.get("bc3_jtn")
+
+            #looks for callsign, if no callsign then None
+            if callsign and str(callsign).strip() != "None":
+                support_list.append(callsign.strip())
+            elif bc3_jtn and str(bc3_jtn).strip() != "None":
+                support_list.append(str(bc3_jtn).strip())
+
+    supporting_assets = f"{", ".join(support_list)}"
+
+    return supporting_assets
 
 def line_three():
-    return
+    return None
 
 def line_four(hostiles):
     """Takes the number and types of hostiles to create the fourth line"""
@@ -73,21 +89,25 @@ def line_four(hostiles):
     return " and ".join(parts) + " possibly enroute."
 
 def line_five():
-    return
+    return None
 
 
 
 
 def generate(armament, hostiles, fuel, time, support, sequence, message, friendly, target):
-    # line 1 = message
-    line_uno = line_one(friendly, target)
-    # line 2 = support
-    # line 3 = sequence
-    # line 4 = hostiles
-    line_cuatro = line_four(hostiles)
-    # line 5 = expanded support
-
-    final_five_line = f"LINE 1: {line_uno}\nLINE 4: {line_cuatro}"
     
+    line_uno = line_one(friendly, target) # line 1 = message
+    line_dos = line_two(support) # line 2 = support
+    line_tres = line_three() # line 3 = sequence
+    line_cuatro = line_four(hostiles) # line 4 = hostiles
+    line_cinco = line_five() # line 5 = expanded support
+    
+    coa = {
+        "FirstLine": f"LINE 1: {line_uno}",
+        "SecondLine": f"LINE 2: {line_dos}",
+        "ThirdLine": f"LINE 3: {line_tres}",
+        "FourthLine": f"LINE 4: {line_cuatro}",
+        "FifthLine": f"LINE 5: {line_cinco}"
+    }
 
-    return final_five_line
+    return coa
