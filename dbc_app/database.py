@@ -580,33 +580,20 @@ def get_groundspeed(identifier: str) -> pd.DataFrame:
 import pandas as pd
 from sqlalchemy import create_engine
 
-def record_exists(asset_tn: str, target_tn: str) -> bool:
-    """
-    Check if a record with the given asset and target already exists in the database.
-    Returns True if exists, False otherwise.
-    """
-    exists = False
+from sqlalchemy import create_engine, text
+
+def record_exists(asset_tn, target_tn):
     try:
         # Create SQLAlchemy engine
         engine = create_engine(
             f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
         )
 
-        # Query the table to see if a record exists
-        query = f"""
-            SELECT 1
-            FROM mef_data_testing
-            WHERE merged_tracknumber = '{asset_tn}'
-              AND entity LIKE '%{target_tn}%'
-            LIMIT 1;
-        """
-
-        df_check = pd.read_sql(query, con=engine)
-        if not df_check.empty:
-            exists = True
+        query = text("SELECT EXISTS (SELECT 1 FROM user_input WHERE asset_tn = :asset AND target_tn = :target);")
+        with engine.connect() as conn:
+            result = conn.execute(query, {"asset": asset_tn, "target": target_tn}).scalar()
+            return result
 
     except Exception as e:
         print("Error checking record existence:", e)
-
-    return exists
-
+        return False
