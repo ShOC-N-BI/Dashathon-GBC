@@ -42,8 +42,8 @@ def evaluate_aircraft(friendly, target, message, timestamp):
     """
     results = {}
 
-    # print(target)
-    # print(friendly)
+    print(target)
+    print(friendly)
 
     # 1. Weapon Viability
     # values - 4 valid weapon pair, 3 asset weapon not 90% effective, 2 asset weapon no options, 1 missing asset or target domain
@@ -67,6 +67,7 @@ def evaluate_aircraft(friendly, target, message, timestamp):
 
     # 5. Supporting Assets 
     results_support = support.gather_support(friendly, target, results_hostiles)
+    # results_support = None
     #print(f'support: {results_support}')
 
     #6. Generate sequence 
@@ -74,8 +75,8 @@ def evaluate_aircraft(friendly, target, message, timestamp):
 
     #7. Assess risk and Build 5-Line
      
-    #results = fiveline.generate(results_amament, results_hostiles, results_fuel, results_time, results_support, results_sequence, message, friendly, target)
-    
+    results = fiveline.generate(results_amament, results_hostiles, results_fuel, results_time, results_support, results_sequence, message, friendly, target)
+    print("results")
     print("WORKS")
 
     return results
@@ -91,7 +92,7 @@ def main():
     # Step 1: Get Data
     user_input.insert_input()
     current_MEF = database.query_mef()
-
+    
     friendly_aircraft_list = current_MEF["actions"].iloc[0]  # Expect list of 3 aircraft
     # friendly_aircraft_list = json.loads(friendly_aircraft_list)
     # print(type(friendly_aircraft_list))

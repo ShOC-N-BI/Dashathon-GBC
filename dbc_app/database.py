@@ -592,6 +592,7 @@ def record_exists(asset_tn, target_tn):
         query = text("SELECT EXISTS (SELECT 1 FROM user_input WHERE asset_tn = :asset AND target_tn = :target);")
         with engine.connect() as conn:
             result = conn.execute(query, {"asset": asset_tn, "target": target_tn}).scalar()
+            print(result)
             return result
 
     except Exception as e:

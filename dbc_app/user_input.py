@@ -74,12 +74,12 @@ def insert_input():
             print(inserted_pairs)
 
             if pair_key not in inserted_pairs:
-                if not database.record_exists(asset.merged_tracknumber, a.target_tn):
-                    database.insert_data(entity, json.dumps(action), "text", timestamp)
-                    inserted_pairs.add(pair_key)
-                    print(f"Inserted: Asset {asset.merged_tracknumber}, Target {a.target_tn}")
-                else:
-                    print(f"Skipping duplicate in DB: Asset {asset.merged_tracknumber}, Target {a.target_tn}")
+                #if not database.record_exists(asset.merged_tracknumber, a.target_tn):
+                database.insert_data(entity, json.dumps(action), "text", timestamp)
+                inserted_pairs.add(pair_key)
+                print(f"Inserted: Asset {asset.merged_tracknumber}, Target {a.target_tn}")
+                #else:
+                #    print(f"Skipping duplicate in DB: Asset {asset.merged_tracknumber}, Target {a.target_tn}")
             else:
                 print(f"Skipping duplicate in current run: Asset {asset.merged_tracknumber}, Target {a.target_tn}")
 
