@@ -68,8 +68,8 @@ def line_two(support):
 
     return supporting_assets
 
-def line_three():
-    return None
+def line_three(sequence):
+    return sequence
 
 def line_four(hostiles):
     """Takes the number and types of hostiles to create the fourth line"""
@@ -98,7 +98,7 @@ def generate(armament, hostiles, fuel, time, support, sequence, message, friendl
     
     line_uno = line_one(friendly, target) # line 1 = message
     line_dos = line_two(support) # line 2 = support
-    line_tres = line_three() # line 3 = sequence
+    line_tres = line_three(sequence) # line 3 = sequence
     line_cuatro = line_four(hostiles) # line 4 = hostiles
     line_cinco = line_five() # line 5 = expanded support
     

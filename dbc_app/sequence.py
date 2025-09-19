@@ -22,6 +22,8 @@ def make_timeline(friendly, results_hostiles, results_fuel, results_support, tim
         for d in support_list
         if isinstance(d, dict)
     )
+    print(support)
+    print("*************")
     
     fuel_score = results_fuel if isinstance(results_fuel, int) else (results_fuel[0] if isinstance(results_fuel, list) and results_fuel else 0)
 
