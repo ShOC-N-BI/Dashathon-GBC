@@ -9,17 +9,21 @@ bc3_friends = database.query_bc3_friends_vw()
 
 
 def haversine(lat1, lon1, lat2, lon2):
+    """Calculate the great-circle distance between two points on Earth in km."""
     R = 6371
     phi1 = math.radians(lat1)
     phi2 = math.radians(lat2)
     delta_phi = math.radians(lat2 - lat1)
     delta_lambda = math.radians(lon2 - lon1)
     a = math.sin(delta_phi / 2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(delta_lambda/2)**2
-    c = 2*math.atan2(math.sqrt(a), math.sqrt(1-a))
+    c = 2*math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
 
 
-# Process each user_input row individually
+# Keep track of inserted asset-target pairs to avoid duplicates
+inserted_pairs = set()
+
+# Process each user_input row
 for a in user_input.itertuples(index=False):
     # Find asset and entity
     asset = next((row for row in bc3_friends.itertuples(index=False)
@@ -31,7 +35,7 @@ for a in user_input.itertuples(index=False):
         # Compute distance
         distance = haversine(asset.latitude, asset.longitude, entity_row.latitude, entity_row.longitude)
 
-        # Define separate variables for this row
+        # Define variables
         action = {
             "lat": asset.latitude,
             "lon": asset.longitude,
@@ -56,14 +60,16 @@ for a in user_input.itertuples(index=False):
 
         timestamp = a.timestamp
 
-        # Check duplicates in DB
-        if not database.record_exists(asset.merged_tracknumber, a.target_tn):
+        # Skip duplicates
+        pair_key = (asset.merged_tracknumber, a.target_tn)
+        if pair_key not in inserted_pairs:
+            # Insert into database using fixed insert_data
             database.insert_data(entity, json.dumps(action), "text", timestamp)
+            inserted_pairs.add(pair_key)
         else:
             print(f"Skipping duplicate: Asset {asset.merged_tracknumber}, Target {a.target_tn}")
 
-        # You can now use these variables individually in your code
-        # For example:
+        # Variables are available for further use if needed
         # print(entity)
         # print(action)
         # print(timestamp)

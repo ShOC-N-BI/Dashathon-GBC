@@ -37,21 +37,22 @@ entity = "pae_data"
 user_input = "user_input"
 bc3_friends_vw = "bc3_friends_vw"
 
-def insert_data(entity:str, actions, message, timestamp) -> list:
+def insert_data(entity: str, actions, message, timestamp) -> None:
     print(timestamp)
     try:
         conn = psycopg2.connect(
             host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
         )
         query = "INSERT INTO mef_data_testing (entity, actions, message, timestamp) VALUES (%s, %s, %s, %s);"
-        params = (f"{entity}, {actions}, {message}, {timestamp}")
+        params = (entity, actions, message, timestamp)  # <-- fixed here
         with conn.cursor() as cur:
-            cur.execute(query, params,)
+            cur.execute(query, params)
+        conn.commit()  # don't forget to commit
     except Exception as e:
         print("Error:", e)
-    
-    finally: 
-        return
+    finally:
+        if conn:
+            conn.close()
     
 def query_user_input() -> list:
     results = []
