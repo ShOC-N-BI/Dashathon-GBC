@@ -92,47 +92,23 @@ def main():
     - Print or log final summary for all aircraft.
     """
     # Step 1: Get Data
-    global temp 
     user_input.insert_input()
-    current_MEF = database.query_mef()  
-    if temp is not None:
-        print(f"temp {type(temp)} MEF {type(current_MEF)}")
-        if temp.equals(current_MEF):
-            print("MEF already processed")
-            return 
-    else:
-        print("New MEF")
+    current_MEF = database.query_mef()
 
-    temp = current_MEF
-    return
     friendly_aircraft_list = current_MEF["actions"].iloc[0]  # Expect list of 3 aircraft
     # friendly_aircraft_list = json.loads(friendly_aircraft_list)
     # print(type(friendly_aircraft_list))
     # print(friendly_aircraft_list[0].keys())
-    
     target_aircraft = current_MEF["entity"].iloc[0]  # Expect single hostile aircraft
     target_message = current_MEF["message"].iloc[0]
     target_time = current_MEF["timestamp"].iloc[0]
 
-    # extract tracknumber
-    match = re.match(r'\s*(\d{5})', target_aircraft)
-    if match:
-        target_aircraft_id = match.group(1)
-    else:
-        target_aircraft_id = None
-
     # Step 2: Run evaluations
     all_results = {}
-    coa = []
     for idx, friendly in enumerate(friendly_aircraft_list, start=1):
-        #print(f"\n=== Evaluating Friendly Aircraft {idx} ===")
+        print(f"\n=== Evaluating Friendly Aircraft {idx} ===")
         evaluation = evaluate_aircraft(friendly, target_aircraft, target_message, target_time)
         all_results[f"Aircraft_{idx}"] = evaluation
-        coa.append(evaluation)
-
-    print(coa)
-    # Insert into DB
-    database.push_coa_to_db(target_aircraft_id, coa, target_message, target_time)
 
     return
     # Step 3: Summarize results
@@ -146,8 +122,4 @@ def main():
 
 
 if __name__ == "__main__":
-    while(True):
-        print("*")
-        main()
-        time.sleep(1)
-        print("**")
+    main()

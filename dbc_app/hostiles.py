@@ -40,14 +40,14 @@ def evaluate_threat(friendly, target):
     
     def compute_midPoint(friendly, target):  
         return [
-            (float(friendly["lat"]) + float(target["Lattitude"])) / 2,
+            (float(friendly["lat"]) + float(target["Latitude"])) / 2,
             (float(friendly["lon"]) + float(target["Longitude"])) / 2
         ]
     
     midpoint = compute_midPoint(friendly,hostile)
     
     def determine_radius(friendly,target ):
-        return geodesic([friendly["lat"],friendly["lon"]], [target["Lattitude"], target["Longitude"]]).km / 2
+        return geodesic([friendly["lat"],friendly["lon"]], [target["Latitude"], target["Longitude"]]).km / 2
     
     radius = determine_radius(friendly,hostile)
 
@@ -57,7 +57,12 @@ def evaluate_threat(friendly, target):
         for row in bc3_all.itertuples(index=False):
             distance = geodesic(midpoint, [float(row.latitude), float(row.longitude)]).km
             if distance < radius and row.trackid in ("Hostile"):
-                detected.append((row.tracknumber, row.trackid, row.trackcategory ))  # append the whole row
+                detected.append({
+                    "tracknumber": row.tracknumber, 
+                    "trackid": row.trackid,
+                    "trackcategory": row.trackcategory,
+                    "callsign": row.callsign,
+                    "aircraft_type": row.aircraft_type})  # append the whole row
         return detected
     
     detected_hotiles = locate_hostiles(midpoint, radius)

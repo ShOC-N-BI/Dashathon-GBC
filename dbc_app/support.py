@@ -2,6 +2,8 @@ import database
 import math 
 import fuel
 import re
+import armament
+import json
 
 # -----------------------------
 # Utility Functions
@@ -71,21 +73,41 @@ def find_tankers(friendly):
 
 # Edit for different 
 def find_escort(friendly, hostile, target):
+    min_distance = float("inf")
     
-    escort_list = database.query_assets("weapon","ILIKE", "%AIM-120%")
+    a = armament.check_armaments(friendly, target)
+    print(a)
+    escort_list = database.query_assets("trackid","ILIKE", "Friend", friendly["bc3_jtn"])
     escort_distances = []
+    test_list = []
+    final = []
 
     for row in escort_list:
         escort_lat = float(row["latitude"])
         escort_lon = float(row["longitude"])  # Make sure this isn't latitude again!
         distance = haversine(escort_lat, escort_lon, float(friendly["lat"]), float(friendly["lon"]))
+        # if distance < min_distance:
+        #     min_distance = distance
         escort_distances.append((distance, row))
 
     # Sort escorts by distance
     escort_distances.sort(key=lambda x: x[0])
 
+    for enemy in hostile[1]:
+        if len(escort_distances) >= 1:
+            for ally in escort_distances:
+                test_list = json.loads(armament.check_armaments(ally, enemy))
+                if test_list["app_code"] > 2:
+                    final.append(test_list)
+                    escort_distances.remove(ally)
+                    break
+        else:
+            return "{'1', 'No Escorts Available' }"
+            break
+                
+
     # Select top n + 1 closest escorts
-    nearest_escort = [row for _, row in escort_distances[:hostile + 1]]
+    nearest_escort = [row for _, row in final]
     escort_report = {
         "escort": [
           {
@@ -94,17 +116,28 @@ def find_escort(friendly, hostile, target):
                 "callsign": escort["callsign"],
                 "lat": escort["latitude"],
                 "lon": escort["longitude"],
+                "weapon": escort["weapon"],
+                "trackcategory": escort["trackcategory"],
                 "aircraft_type": escort["aircraft_type"],
                 "distance_km": haversine(
                     escort["latitude"],
                     escort["longitude"],
-                    float(target["Lattitude"]),
+                    float(target["Latitude"]),
                     float(target["Longitude"])
                 ),
             }
         for escort in nearest_escort
         ]
     }
+    # for targ in hostile[1]:
+    #     for item in escort_report["escort"]:
+    #         test_list = (json.loads(armament.check_armaments(item, targ)))
+    #         if test_list["app_code"] > 2:
+    #             final.append(test_list)
+    #             print(final)
+            
+
+    
     return escort_report
 
 def find_awac(friendly):
@@ -133,7 +166,7 @@ def find_ew(friendly):
 
 def find_sead(friendly):
     min_distance = float("inf")
-    sead_list = database.query_assets("weapon","ILIKE", "%AGM-88%")
+    sead_list = database.query_assets("weapon","ILIKE", "%AGM-88%", friendly["bc3_jtn"])
     for sead in sead_list:
         sead_lat = float(sead["latitude"])
         sead_lon = float(sead["longitude"])
@@ -158,8 +191,8 @@ def gather_support(friendly, target, hostiles):
     hostile_data = hostiles[1]
     fuel_report = []
 
-    if hostile_code < 4:
-        escort_report = find_escort(friendly, len(hostile_data), target_data)
+    if hostile_code <= 4:
+        escort_report = find_escort(friendly, hostiles, target_data)
         for item in escort_report["escort"]:
             fuel_report.append(fuel.analyze_fuel(item, target))
         escorts = escort_report["escort"]

@@ -101,7 +101,7 @@ def push_coa_to_db(target_aircraft_id: str, coa: str, target_message: str, targe
 
 
 
-def query_assets(column: str, operator:str, filter: str) -> list:
+def query_assets(column: str, operator:str, filter: str, bc3_jtn: int) -> list:
     results = []
     try:
         # Connect to PostgreSQL
@@ -110,7 +110,7 @@ def query_assets(column: str, operator:str, filter: str) -> list:
         )
 
         # Use parameterized query to prevent SQL injection
-        query = f"SELECT * FROM {bc3_with_all_vw} WHERE {column} {operator} '{filter}' AND aircraft_type NOT LIKE 'DIS(265)';"
+        query = f"SELECT * FROM {bc3_with_all_vw} WHERE {column} {operator} '{filter}'AND weapon IS NOT NULL AND weapon NOT LIKE '-' AND aircraft_type NOT LIKE 'DIS(265)' AND bc3_jtn NOT LIKE '{bc3_jtn}';"
         with conn.cursor() as cur:
             cur.execute(query,)
             columns = [desc[0] for desc in cur.description]

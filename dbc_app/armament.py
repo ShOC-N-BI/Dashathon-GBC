@@ -134,6 +134,7 @@ _QUERY_MAP = {
     ("surface", "air"):    database.query_red_air_del_s2a,       # surface→air
     ("land", "surface"):   database.query_red_maritime_del_s2s,  # per your rule
     ("ground", "surface"): database.query_red_maritime_del_s2s,  # alias
+    ("land", "air"):       database.query_red_air_del_s2a,  # alias
 }
 
 def fetch_deliverables_df(friendly_side: str, enemy_side: str) -> pd.DataFrame:
@@ -577,7 +578,8 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
 
             rows.append(row)
 
-        if not matched_any_this_asset:
+        if not matched_any_
+        this_asset:
             rows.append({
                 "friendly_id": fid, "weapon": None, "weapon_base_code": None, "qty": None,
                 "effectiveness": None, "range": None, "alt_low": None, "alt_high": None,

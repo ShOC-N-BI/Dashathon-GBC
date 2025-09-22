@@ -102,7 +102,7 @@ def midpoint_for_target(calc, target, asset_lat, asset_long):
     """
     Calculate the distance between asset and target from a tanker midpoint
     """
-    entity_lat = float(target["Lattitude"])
+    entity_lat = float(target["Latitude"])
     entity_long = float(target["Longitude"])
     distance_to_target = haversine(entity_lat, entity_long, calc[0],calc[1])
     distance_to_origin = haversine(asset_lat, asset_long, calc[0],calc[1])
@@ -133,7 +133,7 @@ def find_nearest_tanker(friendly_lat, friendly_lon, tankers, target):
     """
     nearest = None
     min_distance = float("inf")
-    entity_lat = float(target["Lattitude"])
+    entity_lat = float(target["Latitude"])
     entity_long = float(target["Longitude"])
 
     for tanker in tankers:
@@ -189,7 +189,7 @@ def analyze_fuel(friendly, target):
     asset_long = float(friendly["lon"])
     all_view = database.query_friendly_asset(track_id)
     speed = all_view["groundspeed"]
-    if speed[0] == '0':
+    if speed[0] == '0' or speed[0] is None:
          speed = 220
     tankers = database.query_tankers()
 
