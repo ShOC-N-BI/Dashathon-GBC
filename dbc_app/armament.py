@@ -701,8 +701,7 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
 
             rows.append(row)
 
-        if not matched_any_
-        this_asset:
+        if not matched_any_this_asset:
             rows.append({
                 "friendly_id": fid, "weapon": None, "weapon_base_code": None, "qty": None,
                 "effectiveness": None, "range": None, "alt_low": None, "alt_high": None,

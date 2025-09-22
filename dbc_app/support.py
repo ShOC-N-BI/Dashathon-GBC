@@ -80,6 +80,7 @@ def find_escort(friendly, hostile, target):
     escort_list = database.query_assets("trackid","ILIKE", "Friend", friendly["bc3_jtn"])
     escort_distances = []
     test_list = []
+    raw = []
     final = []
 
     for row in escort_list:
@@ -98,7 +99,7 @@ def find_escort(friendly, hostile, target):
             for ally in escort_distances:
                 test_list = json.loads(armament.check_armaments(ally, enemy))
                 if test_list["app_code"] > 2:
-                    final.append(test_list)
+                    raw.append(test_list)
                     escort_distances.remove(ally)
                     break
         else:
@@ -107,21 +108,24 @@ def find_escort(friendly, hostile, target):
                 
 
     # Select top n + 1 closest escorts
-    nearest_escort = [row for _, row in final]
+    for listed_escort in raw:
+        extract = listed_escort["results"]
+        final.append(database.query_friendly_asset(extract[0]["bc3_jtn"]))
+    nearest_escort = [row for row in final]
     escort_report = {
         "escort": [
           {
-                "bc3_jtn": escort["bc3_jtn"],
-                "bc3_vcs": escort["bc3_vcs"],
-                "callsign": escort["callsign"],
-                "lat": escort["latitude"],
-                "lon": escort["longitude"],
-                "weapon": escort["weapon"],
-                "trackcategory": escort["trackcategory"],
-                "aircraft_type": escort["aircraft_type"],
+                "bc3_jtn": escort["bc3_jtn"][0],
+                "bc3_vcs": escort["bc3_vcs"][0],
+                "callsign": escort["callsign"][0],
+                "lat": escort["latitude"][0],
+                "lon": escort["longitude"][0],
+                "weapon": escort["weapon"][0],
+                "trackcategory": escort["trackcategory"][0],
+                "aircraft_type": escort["aircraft_type"][0],
                 "distance_km": haversine(
-                    escort["latitude"],
-                    escort["longitude"],
+                    escort["latitude"][0],
+                    escort["longitude"][0],
                     float(target["Latitude"]),
                     float(target["Longitude"])
                 ),
@@ -191,7 +195,7 @@ def gather_support(friendly, target, hostiles):
     hostile_data = hostiles[1]
     fuel_report = []
 
-    if hostile_code <= 4:
+    if hostile_code < 4:
         escort_report = find_escort(friendly, hostiles, target_data)
         for item in escort_report["escort"]:
             fuel_report.append(fuel.analyze_fuel(item, target))
@@ -213,3 +217,24 @@ def gather_support(friendly, target, hostiles):
     }
     # print(build_report)
     return build_report
+
+# if __name__ == "__main__":
+#     enemy = '44142, ( "CallSign": "LEADERSH", "Track Cat": "Land", "Track ID": "Hostile", "Aircraft Type": None, "Latitude": 25.798603224961937, "Longitude": -80.19250687633644 )'
+
+
+#     hostile = (4, [43628, 'Hostile','Air', 'None', 'None']),(4, [43623, 'Hostile','Air', 'None', 'None']),(4, [43625, 'Hostile','Air', 'None', 'None'])
+
+#     friendly_assets = [{
+#         "callsign": "Lifeguard61",                 # rescue prefix OK
+#         "weapon": "2XAIM-9, 4XAIM-120, 4XGBU-53 SD",
+#         "aircraft_type": "F-A-22",
+#         "trackcategory": "air",
+#         "comm_deliverables": "VHF, UHF, Comm Sat",
+#         "sensing_deliverables": "AMTI, IMINT 1, ELINT 1",
+#         "ea_deliverables": "Responsive Noise, DRFM",
+#         "bc3_jtn": "15486",                        # now carried through in all scenarios
+#         "matched_actions": ["rescue"]              # try "degrade", "investigate", or "destroy"
+#     }]
+
+#     json_payload = gather_support(friendly_assets, enemy, hostile)
+#     print(json_payload)
