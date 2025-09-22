@@ -29,6 +29,7 @@ def insert_input():
         print("***")
         asset = next((row for row in bc3_friends.itertuples(index=False)
                     if a.asset_tn == row.merged_tracknumber), None)
+                    
         entity_row = next((row for row in bc3_all.itertuples(index=False)
                         if a.target_tn == row.tracknumber), None)
        
@@ -62,7 +63,7 @@ def insert_input():
             entity = (
                 f"{a.target_tn} (CallSign: {entity_row.callsign}, Track Cat: {entity_row.trackcategory}, "
                 f"Track ID: {entity_row.trackid}, Aircraft Type: {entity_row.aircraft_type}, "
-                f"Lattitude: {entity_row.latitude}, Longitude: {entity_row.longitude})"
+                f"Latitude: {entity_row.latitude}, Longitude: {entity_row.longitude})"
             )
 
             timestamp = a.timestamp

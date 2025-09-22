@@ -43,7 +43,7 @@ def evaluate_aircraft(friendly, target, message, timestamp):
     """
     results = {}
 
-    #print(target)
+    print(target)
     #print(friendly)
 
     # 1. Weapon Viability
@@ -102,6 +102,7 @@ def main():
     target_message = current_MEF["message"].iloc[0]
     target_time = current_MEF["timestamp"].iloc[0]
 
+    print(f"tar air: {target_aircraft}")
     # extract tracknumber
     match = re.match(r'\s*(\d{5})', target_aircraft)
     if match:
@@ -109,6 +110,8 @@ def main():
     else:
         target_aircraft_id = None
 
+    print(f"tar air id: {target_aircraft_id}")
+    print(f"tar air: {target_aircraft}")
     # Step 2: Run evaluations
     all_results = {}
     coa = []
@@ -120,6 +123,7 @@ def main():
 
     print(coa)
     # Insert into DB
+    # return
     database.push_coa_to_db(target_aircraft_id, coa, target_message, target_time)
 
     return
