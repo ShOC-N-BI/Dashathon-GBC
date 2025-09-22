@@ -91,8 +91,8 @@ def line_four(hostiles):
 
     return " and ".join(parts) + " possibly enroute."
 
-def line_five():
-    return None
+def line_five(support):
+    return "Cyber Cereal and Space Photon"
 
 
 
@@ -103,7 +103,7 @@ def generate(armament, hostiles, fuel, time, support, sequence, message, friendl
     line_dos = line_two(support) # line 2 = support
     line_tres = line_three(sequence) # line 3 = sequence
     line_cuatro = line_four(hostiles) # line 4 = hostiles
-    line_cinco = line_five() # line 5 = expanded support
+    line_cinco = line_five(support) # line 5 = expanded support
     
     coa = {
         "FirstLine": f"LINE 1: {line_uno}",
