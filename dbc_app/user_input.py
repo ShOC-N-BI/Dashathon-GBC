@@ -8,7 +8,7 @@ def insert_input():
     user_input = database.query_user_input()
     bc3_all = database.query_bc3_with_all_vw()
     bc3_friends = database.query_bc3_friends_vw()
-    mef= database.query_mef()
+    mef = database.query_mef()
     print(user_input)
 
     def haversine(lat1, lon1, lat2, lon2):
@@ -22,68 +22,58 @@ def insert_input():
         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
         return R * c
 
-    
+    def parse_track_info(track_string):
+        """Parse MEF entity string into a dictionary with ID."""
+        match = re.match(r"(\d+)\s*\((.*)\)", track_string)
+        if not match:
+            return None
+        track_id = match.group(1)
+        key_values = match.group(2)
+        info_dict = {}
+        for kv in key_values.split(","):
+            key, value = kv.split(":", 1)
+            info_dict[key.strip()] = value.strip()
+        info_dict["ID"] = track_id
+        return info_dict
 
+    # Build existing pairs from MEF table (normalize to strings)
     existing_pairs = set()
     for row in mef.itertuples(index=False):
-        def parse_track_info(track_string):
-            # Regex to capture the main ID and all key-value pairs inside parentheses
-            match = re.match(r"(\d+)\s*\((.*)\)", track_string)
-            if not match:
-                return None
-            
-            track_id = match.group(1)
-            key_values = match.group(2)
-
-            # Convert key-value pairs to a dictionary
-            info_dict = {}
-            for kv in key_values.split(","):
-                key, value = kv.split(":", 1)
-                info_dict[key.strip()] = value.strip()
-            
-            # Include the main ID as well
-            info_dict["ID"] = track_id
-            return info_dict
-        
         target_mef = parse_track_info(row.entity)
-
+        if target_mef is None or "ID" not in target_mef:
+            print(f"Skipping invalid MEF row: {row.entity}")
+            continue
         asset_mef = row.actions
+        if not asset_mef or "merged_tracknumber" not in asset_mef[0]:
+            continue
+        existing_pairs.add((
+            str(asset_mef[0]["merged_tracknumber"]).strip(),
+            str(target_mef["ID"]).strip()
+        ))
 
-
-        # row.asset_tn and row.target_tn are the columns in the other table
-        existing_pairs.add((asset_mef[0]["merged_tracknumber"
-        ], target_mef["ID"]))
-
-    # Now process user_input
+    # Track duplicates in the current batch
+    
+    print(existing_pairs)
+    # Process user_input
     for a in user_input.itertuples(index=False):
-        pair_key = (a.asset_tn, a.target_tn)
+        pair_key = (str(a.asset_tn).strip(), str(a.target_tn).strip())
 
-        # Skip if this pair exists in the other table
+        # Skip duplicates in MEF table
         if pair_key in existing_pairs:
-            print(f"Skipping duplicate found in other table: Asset {a.asset_tn}, Target {a.target_tn}")
+            print(f"Skipping duplicate found in MEF: Asset {a.asset_tn}, Target {a.target_tn}")
             continue
 
+      
+
         # Proceed with insertion
-        asset = next((row for row in bc3_friends.itertuples(index=False) if a.asset_tn == row.merged_tracknumber), None) 
+        asset = next((row for row in bc3_friends.itertuples(index=False) if a.asset_tn == row.merged_tracknumber), None)
         entity_row = next((row for row in bc3_all.itertuples(index=False) if a.target_tn == row.tracknumber), None)
 
         if asset is None or entity_row is None:
             print(f"Non-existent match for Asset {a.asset_tn} or Target {a.target_tn}")
             continue
-        if asset == None:
-            print("TARGET NONE")
-            print(type(entity_row))
-            continue
-        print(f" Asset {a.asset_tn}, Target {a.target_tn}")
 
-        #if asset is None:
-        #    print(f"Non-existent match for Asset {a.asset_tn}")
-        #    continue
-        #if entity_row is None:
-        #    print(f"Non-existent match for Target {a.target_tn}")
-        #    continue
-
-
+        print(pair_key)
 
         # Compute distance
         distance = haversine(asset.latitude, asset.longitude, entity_row.latitude, entity_row.longitude)
@@ -117,7 +107,7 @@ def insert_input():
         # Insert into database
         try:
             database.insert_data(entity, json.dumps(action), "text", timestamp)
-            existing_pairs.add(pair_key)
+            
             print(f"Inserted: Asset {asset.merged_tracknumber}, Target {a.target_tn}")
         except Exception as e:
             print(f"Error inserting data for Asset {asset.merged_tracknumber}, Target {a.target_tn}: {e}")

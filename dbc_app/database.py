@@ -55,26 +55,6 @@ def insert_data(entity: str, actions, message, timestamp) -> None:
     finally:
         if conn:
             conn.close()
-    
-def query_user_input() -> list:
-    results = []
-    try:
-        conn = psycopg2.connect(
-            host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
-        )
-        query = f"""
-            SELECT * FROM user_input;
-        """
-        df = pd.read_sql(query, conn,)
-        results = df.iloc[0].to_dict()
-
-    except Exception as e:
-        print("Error:", e)
-    finally:
-        if 'conn' in locals():
-            conn.close()
-    return results
-
 
 def push_coa_to_db(target_aircraft_id: str, coa: str, target_message: str, target_time: str, table_name: str = "gronemeier_frontend_testing"):
 
@@ -559,7 +539,7 @@ def query_user_input():
             f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
         )
 
-        query = f"SELECT * FROM {user_input} order by timestamp desc limit 1;"
+        query = f"SELECT * FROM {user_input} ;"
         df_user_input = pd.read_sql(query, con=engine)
 
     except Exception as e:
