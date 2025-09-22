@@ -43,7 +43,10 @@ def extract_target_name(line: str) -> str | None:
 
 def line_one(friendly, target):
     """Builds out the first line in the five line using the friendly and target names with the matched actions."""
-    friendly_callsign = friendly["callsign"]
+
+    # Use callsign if available, otherwise fallback to tracknumber
+    friendly_callsign = friendly.get("callsign") or str(friendly.get("merged_tracknumber", "UNKNOWN"))
+
     action = friendly["matched_actions"]
     target_callsign = extract_target_name(target)
 

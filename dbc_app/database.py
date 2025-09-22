@@ -76,9 +76,23 @@ def query_user_input() -> list:
     return results
 
 
-def push_coa_to_db(target_aircraft_id: str, coa: str, target_message: str, target_time: str, table_name: str = "gronemeier_frontend_testing"):
-
+def push_coa_to_db(target_aircraft_id: str, coa: dict, target_message: str, target_time: str, table_name: str = "gronemeier_frontend_testing"):
     try:
+        # Convert COA to JSON string
+        coa_json = json.dumps(coa) if coa else None
+
+        # Validation check
+        if not target_aircraft_id:
+            print("Skipping insert: target_aircraft_id is null/empty")
+            return
+        if not target_time:
+            print("Skipping insert: target_time is null/empty")
+            return
+        if not coa_json or coa_json == "[]":
+            print("Skipping insert: coa_json is null/empty")
+            return
+
+        # Connect and insert if all checks pass
         conn = psycopg2.connect(
             host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
         )
@@ -87,12 +101,10 @@ def push_coa_to_db(target_aircraft_id: str, coa: str, target_message: str, targe
             INSERT INTO {table_name} (entity, five_line, message, timestamp)
             VALUES (%s, %s, %s, %s)
             """
-
-            coa_json = json.dumps(coa)
-
             cur.execute(insert_query, (target_aircraft_id, coa_json, target_message, target_time))
             conn.commit()
             print(f"Inserted COA for target {target_aircraft_id} into {table_name}")
+
     except Exception as e:
         print("Error inserting COA:", e)
     finally:
