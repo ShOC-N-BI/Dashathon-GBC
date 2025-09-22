@@ -147,6 +147,7 @@ _QUERY_MAP = {
     ("surface", "air"):    database.query_red_air_del_s2a,       # surface→air
     ("land", "surface"):   database.query_red_maritime_del_s2s,  # per your rule
     ("ground", "surface"): database.query_red_maritime_del_s2s,  # alias
+    ("land", "air"):       database.query_red_air_del_s2a,       # land→air
 }
 
 def fetch_deliverables_df(friendly_side: str, enemy_side: str) -> pd.DataFrame:
@@ -488,7 +489,8 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
             "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
             "note": msg,
             "combined_total_effectiveness_percent": None, "qty_used": None,
-            "ea_deliverables": None, "comm_deliverables": None, "sens_deliverables": None
+            "ea_deliverables": None, "comm_deliverables": None, "sens_deliverables": None,
+            "bc3_jtn": None  # no specific friendly to copy from
         }])
         payload = {"app_code": 1, "results": df_arm_results.where(pd.notnull(df_arm_results), None).to_dict("records")}
         return json.dumps(payload, indent=2)
@@ -504,12 +506,10 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
         f_ea_del = asset.get("ea_deliverables")
         f_comm_del = asset.get("comm_deliverables")
         f_sens_del = asset.get("sensing_deliverables")
+        f_bc3 = asset.get("bc3_jtn")  # <-- always carry through
 
         # ---------- bc3_jtn requirement DISABLED ----------
-        # The following block (which enforced presence of bc3_jtn and could lead
-        # to an app_code 2 via "no matches") is intentionally commented out.
-        # Keeping it disabled allows assets without bc3_jtn to proceed normally.
-        #
+        # (left commented intentionally)
         # identifier = bc3_jtn_for_asset(asset)
         # if not identifier:
         #     rows.append({
@@ -520,6 +520,7 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
         #         "note": "Missing bc3_jtn identifier.",
         #         "combined_total_effectiveness_percent": None, "qty_used": None,
         #         "ea_deliverables": f_ea_del, "comm_deliverables": f_comm_del, "sens_deliverables": f_sens_del,
+        #         "bc3_jtn": f_bc3
         #     })
         #     continue
         # ---------------------------------------------------
@@ -535,7 +536,8 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
                     "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
                     "note": None,
                     "combined_total_effectiveness_percent": None, "qty_used": None,
-                    "ea_deliverables": f_ea_del, "comm_deliverables": f_comm_del, "sens_deliverables": f_sens_del
+                    "ea_deliverables": f_ea_del, "comm_deliverables": f_comm_del, "sens_deliverables": f_sens_del,
+                    "bc3_jtn": f_bc3
                 })
                 authorized_action_present = True
                 matched_any_overall = True  # prevent "no matches" path
@@ -548,7 +550,8 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
                     "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
                     "note": "This asset cannot accomplish this mission.",
                     "combined_total_effectiveness_percent": None, "qty_used": None,
-                    "ea_deliverables": f_ea_del, "comm_deliverables": f_comm_del, "sens_deliverables": f_sens_del
+                    "ea_deliverables": f_ea_del, "comm_deliverables": f_comm_del, "sens_deliverables": f_sens_del,
+                    "bc3_jtn": f_bc3
                 })
                 failed_action_present = True
             continue  # bypass normal logic for rescue
@@ -563,7 +566,8 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
                     "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
                     "note": "DEGRADE MISSION AUTHORIZED",
                     "combined_total_effectiveness_percent": None, "qty_used": None,
-                    "ea_deliverables": f_ea_del, "comm_deliverables": f_comm_del, "sens_deliverables": f_sens_del
+                    "ea_deliverables": f_ea_del, "comm_deliverables": f_comm_del, "sens_deliverables": f_sens_del,
+                    "bc3_jtn": f_bc3
                 })
                 authorized_action_present = True
                 matched_any_overall = True
@@ -576,7 +580,8 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
                     "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
                     "note": "This asset does not have the deliverables to accomplish this mission.",
                     "combined_total_effectiveness_percent": None, "qty_used": None,
-                    "ea_deliverables": f_ea_del, "comm_deliverables": f_comm_del, "sens_deliverables": f_sens_del
+                    "ea_deliverables": f_ea_del, "comm_deliverables": f_comm_del, "sens_deliverables": f_sens_del,
+                    "bc3_jtn": f_bc3
                 })
                 failed_action_present = True
             continue  # bypass normal logic for degrade
@@ -592,7 +597,8 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
                     "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
                     "note": "INVESTIGATE MISSION AUTHORIZED",
                     "combined_total_effectiveness_percent": None, "qty_used": None,
-                    "ea_deliverables": f_ea_del, "comm_deliverables": f_comm_del, "sens_deliverables": f_sens_del
+                    "ea_deliverables": f_ea_del, "comm_deliverables": f_comm_del, "sens_deliverables": f_sens_del,
+                    "bc3_jtn": f_bc3
                 })
                 authorized_action_present = True
                 matched_any_overall = True
@@ -605,7 +611,8 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
                     "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
                     "note": "This asset does not have the deliverables to accomplish this mission.",
                     "combined_total_effectiveness_percent": None, "qty_used": None,
-                    "ea_deliverables": f_ea_del, "comm_deliverables": f_comm_del, "sens_deliverables": f_sens_del
+                    "ea_deliverables": f_ea_del, "comm_deliverables": f_comm_del, "sens_deliverables": f_sens_del,
+                    "bc3_jtn": f_bc3
                 })
                 failed_action_present = True
             continue  # bypass normal logic for investigate
@@ -620,7 +627,8 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
                 "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
                 "note": "Could not determine friendly asset side/domain.",
                 "combined_total_effectiveness_percent": None, "qty_used": None,
-                "ea_deliverables": None, "comm_deliverables": None, "sens_deliverables": None
+                "ea_deliverables": None, "comm_deliverables": None, "sens_deliverables": None,
+                "bc3_jtn": f_bc3
             })
             continue
         classified_any_friendly = True
@@ -640,7 +648,8 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
                 "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
                 "note": "No parseable weapons provided.",
                 "combined_total_effectiveness_percent": None, "qty_used": None,
-                "ea_deliverables": None, "comm_deliverables": None, "sens_deliverables": None
+                "ea_deliverables": None, "comm_deliverables": None, "sens_deliverables": None,
+                "bc3_jtn": f_bc3
             })
             continue
 
@@ -677,7 +686,8 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
                 "qty_used": None,
                 "ea_deliverables": f_ea_del,
                 "comm_deliverables": f_comm_del,
-                "sens_deliverables": f_sens_del
+                "sens_deliverables": f_sens_del,
+                "bc3_jtn": f_bc3
             }
 
             if _val_present(row.get("effectiveness")) and isinstance(row.get("qty"), (int, float)):
@@ -699,7 +709,8 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
                 "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
                 "note": "The asset has no armaments that meet the criteria of this engagement.",
                 "combined_total_effectiveness_percent": None, "qty_used": None,
-                "ea_deliverables": None, "comm_deliverables": None, "sens_deliverables": None
+                "ea_deliverables": None, "comm_deliverables": None, "sens_deliverables": None,
+                "bc3_jtn": f_bc3
             })
 
     # If we never classified any friendly side at all -> code 1
@@ -708,7 +719,8 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
             "friendly_id","weapon","weapon_base_code","qty",
             "effectiveness","range","alt_low","alt_high","speed","dependencies",
             "total_effectiveness_percent","qty_needed_for_90","needs_more_note","note",
-            "combined_total_effectiveness_percent","qty_used","ea_deliverables","comm_deliverables","sens_deliverables"
+            "combined_total_effectiveness_percent","qty_used",
+            "ea_deliverables","comm_deliverables","sens_deliverables","bc3_jtn"
         ])
         payload = {"app_code": 1, "results": df_arm_results.where(pd.notnull(df_arm_results), None).to_dict("records")}
         return json.dumps(payload, indent=2)
@@ -718,7 +730,8 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
         "friendly_id","weapon","weapon_base_code","qty",
         "effectiveness","range","alt_low","alt_high","speed","dependencies",
         "total_effectiveness_percent","qty_needed_for_90","needs_more_note","note",
-        "combined_total_effectiveness_percent","qty_used","ea_deliverables","comm_deliverables","sens_deliverables"
+        "combined_total_effectiveness_percent","qty_used",
+        "ea_deliverables","comm_deliverables","sens_deliverables","bc3_jtn"
     ])
 
     # If any authorized action rows exist (rescue/degrade/investigate), short-circuit to app_code 4
@@ -775,7 +788,7 @@ if __name__ == "__main__":
         "comm_deliverables": "VHF, UHF, Comm Sat",
         "sensing_deliverables": "AMTI, IMINT 1, ELINT 1",
         "ea_deliverables": "Responsive Noise, DRFM",
-        "bc3_jtn": "",                             # intentionally blank to show bc3_jtn gating is disabled
+        "bc3_jtn": "15486",                        # now carried through in all scenarios
         "matched_actions": ["rescue"]              # try "degrade", "investigate", or "destroy"
     }]
 
