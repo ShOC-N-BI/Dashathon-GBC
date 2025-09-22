@@ -53,7 +53,8 @@ def insert_input():
 
 
         # row.asset_tn and row.target_tn are the columns in the other table
-        existing_pairs.add((asset_mef[0]["merged_tracknumber"], target_mef["ID"]))
+        existing_pairs.add((asset_mef[0]["merged_tracknumber"
+        ], target_mef["ID"]))
 
     # Now process user_input
     for a in user_input.itertuples(index=False):
@@ -65,8 +66,8 @@ def insert_input():
             continue
 
         # Proceed with insertion
-        asset = bc3_friends_dict.get(a.asset_tn)
-        entity_row = bc3_all_dict.get(a.target_tn)
+        asset = next((row for row in bc3_friends.itertuples(index=False) if a.asset_tn == row.merged_tracknumber), None) 
+        entity_row = next((row for row in bc3_all.itertuples(index=False) if a.target_tn == row.tracknumber), None)
 
         if asset is None or entity_row is None:
             print(f"Non-existent match for Asset {a.asset_tn} or Target {a.target_tn}")
