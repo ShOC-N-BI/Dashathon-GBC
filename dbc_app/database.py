@@ -558,7 +558,7 @@ def query_user_input():
             f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
         )
 
-        query = f"SELECT * FROM {user_input} ;"
+        query = f"SELECT * FROM {user_input} order by timestamp desc limit 1;"
         df_user_input = pd.read_sql(query, con=engine)
 
     except Exception as e:

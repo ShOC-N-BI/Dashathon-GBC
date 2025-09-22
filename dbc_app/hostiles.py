@@ -40,14 +40,14 @@ def evaluate_threat(friendly, target):
     
     def compute_midPoint(friendly, target):  
         return [
-            (float(friendly["lat"]) + float(target["Lattitude"])) / 2,
+            (float(friendly["lat"]) + float(target["Latitude"])) / 2,
             (float(friendly["lon"]) + float(target["Longitude"])) / 2
         ]
     
     midpoint = compute_midPoint(friendly,hostile)
     
     def determine_radius(friendly,target ):
-        return geodesic([friendly["lat"],friendly["lon"]], [target["Lattitude"], target["Longitude"]]).km / 2
+        return geodesic([friendly["lat"],friendly["lon"]], [target["Latitude"], target["Longitude"]]).km / 2
     
     radius = determine_radius(friendly,hostile)
 

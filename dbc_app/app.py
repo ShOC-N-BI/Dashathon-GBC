@@ -27,10 +27,12 @@ import json
 import warnings
 import re
 import user_input
+import time
 warnings.filterwarnings("ignore")
 
 # === Main Workflow ===
-
+global temp 
+temp = None
 
 def get_friendly_aircraft():
     return 0
@@ -90,9 +92,19 @@ def main():
     - Print or log final summary for all aircraft.
     """
     # Step 1: Get Data
+    global temp 
     user_input.insert_input()
-    current_MEF = database.query_mef()
-    
+    current_MEF = database.query_mef()  
+    if temp is not None:
+        print(f"temp {type(temp)} MEF {type(current_MEF)}")
+        if temp.equals(current_MEF):
+            print("MEF already processed")
+            return 
+    else:
+        print("New MEF")
+
+    temp = current_MEF
+    # return
     friendly_aircraft_list = current_MEF["actions"].iloc[0]  # Expect list of 3 aircraft
     # friendly_aircraft_list = json.loads(friendly_aircraft_list)
     # print(type(friendly_aircraft_list))
@@ -134,4 +146,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    while(True):
+        print("*")
+        main()
+        time.sleep(1)
+        print("**")
