@@ -98,7 +98,7 @@ def find_escort(friendly, hostile, target):
                 "distance_km": haversine(
                     escort["latitude"],
                     escort["longitude"],
-                    float(target["Lattitude"]),
+                    float(target["Latitude"]),
                     float(target["Longitude"])
                 ),
             }

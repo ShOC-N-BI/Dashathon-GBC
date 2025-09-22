@@ -56,11 +56,16 @@ def insert_input():
     print(existing_pairs)
     # Process user_input
     for a in user_input.itertuples(index=False):
-        pair_key = (str(a.asset_tn).strip(), str(a.target_tn).strip())
-
-        # Skip duplicates in MEF table
-        if pair_key in existing_pairs:
-            print(f"Skipping duplicate found in MEF: Asset {a.asset_tn}, Target {a.target_tn}")
+        # Find asset and entity
+        print("***")
+        asset = next((row for row in bc3_friends.itertuples(index=False)
+                    if a.asset_tn == row.merged_tracknumber), None)
+                    
+        entity_row = next((row for row in bc3_all.itertuples(index=False)
+                        if a.target_tn == row.tracknumber), None)
+       
+        if entity_row == None:
+            print("Non existent entity match" )
             continue
 
       
