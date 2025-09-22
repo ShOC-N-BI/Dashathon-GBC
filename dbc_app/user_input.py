@@ -49,7 +49,7 @@ def insert_input():
         
         target_mef = parse_track_info(row.entity)
 
-        asset_mef = row.action
+        asset_mef = row.actions
 
 
         # row.asset_tn and row.target_tn are the columns in the other table
@@ -67,10 +67,23 @@ def insert_input():
         # Proceed with insertion
         asset = bc3_friends_dict.get(a.asset_tn)
         entity_row = bc3_all_dict.get(a.target_tn)
-
-        if asset is None or entity_row is None:
-            print(f"Non-existent match for Asset {a.asset_tn} or Target {a.target_tn}")
+        if asset == None:
+            print("ASSET NONE")
+            print(type(asset))
             continue
+        if asset == None:
+            print("TARGET NONE")
+            print(type(entity_row))
+            continue
+        print(f" Asset {a.asset_tn}, Target {a.target_tn}")
+
+        #if asset is None:
+        #    print(f"Non-existent match for Asset {a.asset_tn}")
+        #    continue
+        #if entity_row is None:
+        #    print(f"Non-existent match for Target {a.target_tn}")
+        #    continue
+
 
 
         # Compute distance

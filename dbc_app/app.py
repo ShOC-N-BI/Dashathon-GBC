@@ -94,6 +94,7 @@ def main():
     # Step 1: Get Data
     global temp 
     user_input.insert_input()
+    return
     current_MEF = database.query_mef()  
     if temp is not None:
         print(f"temp {type(temp)} MEF {type(current_MEF)}")
@@ -105,6 +106,7 @@ def main():
 
     temp = current_MEF
     return
+    # return
     friendly_aircraft_list = current_MEF["actions"].iloc[0]  # Expect list of 3 aircraft
     # friendly_aircraft_list = json.loads(friendly_aircraft_list)
     # print(type(friendly_aircraft_list))
