@@ -1,7 +1,7 @@
 # establish connection to database. database functions that will pull and put into a dataframe that we can use.
 import psycopg2
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text 
 from dotenv import load_dotenv
 import datetime
 import os
@@ -605,9 +605,7 @@ def get_groundspeed(identifier: str) -> pd.DataFrame:
     return groundspeed
 
 import pandas as pd
-from sqlalchemy import create_engine
 
-from sqlalchemy import create_engine, text
 
 def record_exists(asset_tn, target_tn):
     try:

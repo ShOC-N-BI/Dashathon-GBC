@@ -1,12 +1,14 @@
 import database
 import math
 import json
+import re
 
 def insert_input():
     # Load data
     user_input = database.query_user_input()
     bc3_all = database.query_bc3_with_all_vw()
     bc3_friends = database.query_bc3_friends_vw()
+    mef= database.query_mef()
     print(user_input)
 
     def haversine(lat1, lon1, lat2, lon2):
@@ -24,32 +26,52 @@ def insert_input():
     bc3_all_dict = {row.tracknumber: row for row in bc3_all.itertuples(index=False)}
     bc3_friends_dict = {row.merged_tracknumber: row for row in bc3_friends.itertuples(index=False)}
 
-    # Track inserted asset-target pairs in this run to prevent batch duplicates
-    inserted_pairs = set()
+    existing_pairs = set()
+    for row in mef.itertuples(index=False):
+        def parse_track_info(track_string):
+            # Regex to capture the main ID and all key-value pairs inside parentheses
+            match = re.match(r"(\d+)\s*\((.*)\)", track_string)
+            if not match:
+                return None
+            
+            track_id = match.group(1)
+            key_values = match.group(2)
 
+            # Convert key-value pairs to a dictionary
+            info_dict = {}
+            for kv in key_values.split(","):
+                key, value = kv.split(":", 1)
+                info_dict[key.strip()] = value.strip()
+            
+            # Include the main ID as well
+            info_dict["ID"] = track_id
+            return info_dict
+        
+        target_mef = parse_track_info(row.entity)
+
+        asset_mef = row.action
+
+
+        # row.asset_tn and row.target_tn are the columns in the other table
+        existing_pairs.add((asset_mef[0]["merged_tracknumber"], target_mef["ID"]))
+
+    # Now process user_input
     for a in user_input.itertuples(index=False):
         pair_key = (a.asset_tn, a.target_tn)
 
-        # Skip duplicates in current batch
-        if pair_key in inserted_pairs:
-            print(f"Skipping duplicate in current run: Asset {a.asset_tn}, Target {a.target_tn}")
+        # Skip if this pair exists in the other table
+        if pair_key in existing_pairs:
+            print(f"Skipping duplicate found in other table: Asset {a.asset_tn}, Target {a.target_tn}")
             continue
 
-        # Skip duplicates already in DB
-        if database.record_exists(a.asset_tn, a.target_tn):
-            print(f"Skipping duplicate in DB: Asset {a.asset_tn}, Target {a.target_tn}")
-            continue
-
-        # Get asset and entity
+        # Proceed with insertion
         asset = bc3_friends_dict.get(a.asset_tn)
         entity_row = bc3_all_dict.get(a.target_tn)
 
-        if asset is None:
-            print(f"Non-existent asset match: {a.asset_tn}")
+        if asset is None or entity_row is None:
+            print(f"Non-existent match for Asset {a.asset_tn} or Target {a.target_tn}")
             continue
-        if entity_row is None:
-            print(f"Non-existent entity match: {a.target_tn}")
-            continue
+
 
         # Compute distance
         distance = haversine(asset.latitude, asset.longitude, entity_row.latitude, entity_row.longitude)
@@ -83,7 +105,7 @@ def insert_input():
         # Insert into database
         try:
             database.insert_data(entity, json.dumps(action), "text", timestamp)
-            inserted_pairs.add(pair_key)
+            existing_pairs.add(pair_key)
             print(f"Inserted: Asset {asset.merged_tracknumber}, Target {a.target_tn}")
         except Exception as e:
             print(f"Error inserting data for Asset {asset.merged_tracknumber}, Target {a.target_tn}: {e}")
