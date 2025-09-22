@@ -7,7 +7,7 @@ def insert_input():
     user_input = database.query_user_input()
     bc3_all = database.query_bc3_with_all_vw()
     bc3_friends = database.query_bc3_friends_vw()
-    print(user_input)
+    #print(user_input)
     def haversine(lat1, lon1, lat2, lon2):
         """Calculate the great-circle distance between two points on Earth in km."""
         R = 6371
@@ -33,10 +33,10 @@ def insert_input():
                         if a.target_tn == row.tracknumber), None)
        
         if entity_row == None:
-            print("Non existent entity match" )
+            print("User input table: Non existent entity match" )
             continue
         if asset == None:
-            print("Non existent asset match" )
+            print("User input table: Non existent asset match" )
             continue
         if asset and entity_row:
             # Compute distance
@@ -74,7 +74,7 @@ def insert_input():
             print(inserted_pairs)
 
             if pair_key not in inserted_pairs:
-                #if not database.record_exists(asset.merged_tracknumber, a.target_tn):
+                # if not database.record_exists(asset.merged_tracknumber, a.target_tn):
                 database.insert_data(entity, json.dumps(action), "text", timestamp)
                 inserted_pairs.add(pair_key)
                 print(f"Inserted: Asset {asset.merged_tracknumber}, Target {a.target_tn}")
