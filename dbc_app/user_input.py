@@ -56,6 +56,7 @@ def insert_input():
     print(existing_pairs)
     # Process user_input
     for a in user_input.itertuples(index=False):
+        pair_key = (str(a.asset_tn).strip(), str(a.target_tn).strip())
         # Find asset and entity
         print("***")
         asset = next((row for row in bc3_friends.itertuples(index=False)
