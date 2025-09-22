@@ -1,10 +1,10 @@
 from __future__ import annotations
 import re
 import json
-from typing import Iterable, Dict, Any, List, Tuple, Optional
+from typing import Iterable, Dict, Any, List, Optional
 import pandas as pd
 
-import database  
+import database
 
 
 # ----------------------------- Classifiers -----------------------------
@@ -74,6 +74,19 @@ def classify_friendly_side(asset: Dict[str, Any]) -> Optional[str]:
         return "air"
     return None
 
+def bc3_jtn_for_asset(asset: Dict[str, Any]) -> Optional[str]:
+    """Pick a unique-ish identifier for the asset: prefer bc3_jtn, then id, then callsign."""
+    jtn = asset.get("bc3_jtn")
+    if isinstance(jtn, str) and jtn.strip():
+        return jtn.strip()
+    id_ = asset.get("id")
+    if isinstance(id_, str) and id_.strip():
+        return id_.strip()
+    callsign = asset.get("callsign")
+    if isinstance(callsign, str) and callsign.strip():
+        return callsign.strip()
+    return None
+
 
 # ----------------------------- Input normalization (friendlies only) -----------------------------
 def _ensure_friendly_list(friendly_assets: Any) -> List[Dict[str, Any]]:
@@ -134,7 +147,7 @@ _QUERY_MAP = {
     ("surface", "air"):    database.query_red_air_del_s2a,       # surface→air
     ("land", "surface"):   database.query_red_maritime_del_s2s,  # per your rule
     ("ground", "surface"): database.query_red_maritime_del_s2s,  # alias
-    ("land", "air"):       database.query_red_air_del_s2a,  # alias
+    ("land", "air"):       database.query_red_air_del_s2a,       # land→air
 }
 
 def fetch_deliverables_df(friendly_side: str, enemy_side: str) -> pd.DataFrame:
@@ -147,6 +160,7 @@ def fetch_deliverables_df(friendly_side: str, enemy_side: str) -> pd.DataFrame:
         )
     df = func()
     return _ensure_base_codes(_ensure_string_deliverable_col(df))
+
 
 # ----------------------------- Weapon parsing -----------------------------
 _SPLIT = re.compile(r"[;,/]+")
@@ -262,9 +276,8 @@ def _match_single_weapon(weap: Dict[str, Any], cat_df: pd.DataFrame) -> Optional
     return None
 
 
-
 # ----------------------------- Ammo Needed -----------------------------
-def qty_to_reach_threshold(eff_percent: Any, qty: Any, threshold: float = 0.9) -> Tuple[float, int, str]:
+def qty_to_reach_threshold(eff_percent: Any, qty: Any, threshold: float = 0.9) -> tuple[float, int, str]:
     """
     Given per-try effectiveness in % (e.g., 33.33) and a max qty,
     iterate n = 1..qty and stop when 1-(1-p)**n >= threshold or n == qty.
@@ -296,47 +309,37 @@ def qty_to_reach_threshold(eff_percent: Any, qty: Any, threshold: float = 0.9) -
     return round(last * 100, 2), qty_needed, need_more
 
 
-# -----------------------------  Risk Assessment -----------------------------
+# ----------------------------- Utils for actions & deliverables -----------------------------
+RESCUE_HELO_PREFIXES = ("lifeguard", "pelican")
+
+def is_rescue_callsign(fid: Optional[str]) -> bool:
+    """Accept callsigns that start with approved rescue prefixes (case-insensitive).
+    Examples: 'lifeguard', 'lifeguard61', 'Pelican7'."""
+    return isinstance(fid, str) and fid.strip().lower().startswith(RESCUE_HELO_PREFIXES)
+
+def _actions(asset: Dict[str, Any]) -> List[str]:
+    """Normalize matched_actions to a lowercased list of strings."""
+    a = asset.get("matched_actions")
+    if isinstance(a, list):
+        return [str(x).strip().lower() for x in a if isinstance(x, (str, int, float))]
+    if isinstance(a, (str, int, float)):
+        return [str(a).strip().lower()]
+    return []
+
+def _has_any_content(val: Any) -> bool:
+    """Treat None, '', '-', 'null' as empty. Strings with any other chars count as present."""
+    if val is None:
+        return False
+    if isinstance(val, str):
+        s = val.strip().lower()
+        return bool(s) and s not in {"-", "none", "null"}
+    if isinstance(val, (list, tuple, set, dict)):
+        return len(val) > 0
+    return bool(val)
+
 def _val_present(x: Any) -> bool:
     # truthy for non-empty strings/numbers and non-NaN values
     return x is not None and not (isinstance(x, float) and pd.isna(x)) and x != ""
-
-# ---------- RISK SCORE DISABLED ----------
-# def risk_assessment(row: Optional[Dict[str, Any]]) -> Optional[int]:
-#     """
-#     Math for the effectiveness score
-#     """
-#     # Default so we don't crash if missing fields
-#     eff_perc = 0.0  # 0..1
-#
-#     # Use the helper to compute cumulative effectiveness vs. qty and the n needed for >=90%
-#     if _val_present(row.get("effectiveness")) and isinstance(row.get("qty"), (int, float)):
-#         total_percent, qty_needed, need_more = qty_to_reach_threshold(
-#             row.get("effectiveness"), row.get("qty"), threshold=0.9
-#         )
-#         eff_perc = total_percent / 100.0  # convert back to 0..1 for scoring
-#
-#         # (Optional) stash details on the row for later display/debug
-#         row["total_effectiveness_percent"] = total_percent
-#         row["qty_needed_for_90"] = qty_needed
-#         if need_more:
-#             row["needs_more_note"] = need_more
-#
-#     """
-#     Weights: weapon=3, effectiveness=3, qty=2, range=2, alt=2, speed=1, dependencies=1
-#     """
-#     score = 0
-#     score += 3 if _val_present(row.get("weapon")) else 0
-#     score += 3 if eff_perc >= 0.9 else 0
-#     score += 2 if 0.1 <= eff_perc < 0.9 else 0
-#     score += 2 if _val_present(row.get("qty")) else 0
-#     score += 2 if _val_present(row.get("range")) else 0
-#     score += 2 if _val_present(row.get("alt_low")) or _val_present(row.get("alt_high")) else 0
-#     score += 1 if eff_perc < 0.1 else 0
-#     score += 1 if _val_present(row.get("speed")) else 0
-#     score += 0 if _val_present(row.get("dependencies")) else 1
-#     return score
-# ----------------------------------------
 
 
 # ----------------------------- Reduction (one result per friendly_id) -----------------------------
@@ -399,7 +402,6 @@ def _reduce_matches_by_friendly(df: pd.DataFrame) -> pd.DataFrame:
 
         failure = 1.0
         plan_counts: Dict[str, int] = {}
-        shots_used_total = 0
 
         # Build plan by consuming shots from highest-p first
         for _, r in valid.iterrows():
@@ -413,7 +415,6 @@ def _reduce_matches_by_friendly(df: pd.DataFrame) -> pd.DataFrame:
                     break
                 failure *= (1.0 - p)
                 used += 1
-                shots_used_total += 1
 
             if used > 0:
                 plan_counts[name] = used
@@ -441,18 +442,14 @@ def _reduce_matches_by_friendly(df: pd.DataFrame) -> pd.DataFrame:
         return labeled
 
     reduced = (
-        out.groupby(["friendly_id"], dropna=False, group_keys=False)
-           .apply(choose)
-           .reset_index(drop=True)
+        out.groupby(["friendly_id"], dropna=False, group_keys=False).apply(choose).reset_index(drop=True)
     )
 
     # Preserve original column order (+ combined metrics)
     return reduced[cols]
 
 
-
 # ----------------------------- Execution -----------------------------
-
 def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
     """
     Returns a JSON string:
@@ -460,6 +457,12 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
         "app_code": <int>,
         "results": [ { row... }, ... ]
       }
+
+    Action overrides:
+      - destroy: normal domain/weapon logic
+      - degrade: requires ea_deliverables present; if present -> app_code 4 & ignore matching; else app_code 2
+      - investigate: requires at least one of sensing_deliverables or comm_deliverables; if neither -> app_code 2; else app_code 4 & ignore matching
+      - rescue: callsign must start with 'lifeguard' or 'pelican' (case-insensitive); if yes -> app_code 4 & ignore matching; else app_code 2
     """
     # Normalize friendlies
     friendly_list = _ensure_friendly_list(friendly_assets)
@@ -467,10 +470,14 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
     # Classify enemy side
     enemy_side = classify_enemy_side(enemy_data)
     rows: List[Dict[str, Any]] = []
-    cache: Dict[Tuple[str, str], pd.DataFrame] = {}
+    cache: Dict[tuple[str, str], pd.DataFrame] = {}
 
     classified_any_friendly = False   # at least one friendly got a determinable side
     matched_any_overall = False       # at least one weapon matched across all assets
+
+    # Track mission overrides from actions per asset
+    authorized_action_present = False
+    failed_action_present = False
 
     # Early exit if enemy side undetermined
     if not enemy_side:
@@ -482,12 +489,10 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
             "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
             "note": msg,
             "combined_total_effectiveness_percent": None, "qty_used": None,
-            "ea_deliverables": None, "comm_deliverables": None, "sens_deliverables": None
+            "ea_deliverables": None, "comm_deliverables": None, "sens_deliverables": None,
+            "bc3_jtn": None  # no specific friendly to copy from
         }])
-        payload = {
-            "app_code": 1,
-            "results": df_arm_results.where(pd.notnull(df_arm_results), None).to_dict("records")
-        }
+        payload = {"app_code": 1, "results": df_arm_results.where(pd.notnull(df_arm_results), None).to_dict("records")}
         return json.dumps(payload, indent=2)
 
     for asset in friendly_list:
@@ -496,9 +501,124 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
 
         fid = asset.get("callsign")
         fside = classify_friendly_side(asset)
-        f_ed_del = asset.get("ea_deliverables")
-        comm_del = asset.get("comm_deliverables")
-        sens_del = asset.get("sensing_deliverables")
+        actions = _actions(asset)
+
+        f_ea_del = asset.get("ea_deliverables")
+        f_comm_del = asset.get("comm_deliverables")
+        f_sens_del = asset.get("sensing_deliverables")
+        f_bc3 = asset.get("bc3_jtn")  # <-- always carry through
+
+        # ---------- bc3_jtn requirement DISABLED ----------
+        # (left commented intentionally)
+        # identifier = bc3_jtn_for_asset(asset)
+        # if not identifier:
+        #     rows.append({
+        #         "friendly_id": fid, "weapon": None, "weapon_base_code": None, "qty": None,
+        #         "effectiveness": None, "range": None, "alt_low": None, "alt_high": None,
+        #         "speed": None, "dependencies": None,
+        #         "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
+        #         "note": "Missing bc3_jtn identifier.",
+        #         "combined_total_effectiveness_percent": None, "qty_used": None,
+        #         "ea_deliverables": f_ea_del, "comm_deliverables": f_comm_del, "sens_deliverables": f_sens_del,
+        #         "bc3_jtn": f_bc3
+        #     })
+        #     continue
+        # ---------------------------------------------------
+
+        # ---------- ACTION LOGIC OVERRIDES ----------
+        if "rescue" in actions:
+            if is_rescue_callsign(fid):
+                rows.append({
+                    "friendly_id": fid,
+                    "weapon": None, "weapon_base_code": None, "qty": None,
+                    "effectiveness": None, "range": None, "alt_low": None, "alt_high": None,
+                    "speed": None, "dependencies": None,
+                    "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
+                    "note": None,
+                    "combined_total_effectiveness_percent": None, "qty_used": None,
+                    "ea_deliverables": f_ea_del, "comm_deliverables": f_comm_del, "sens_deliverables": f_sens_del,
+                    "bc3_jtn": f_bc3
+                })
+                authorized_action_present = True
+                matched_any_overall = True  # prevent "no matches" path
+            else:
+                rows.append({
+                    "friendly_id": fid,
+                    "weapon": None, "weapon_base_code": None, "qty": None,
+                    "effectiveness": None, "range": None, "alt_low": None, "alt_high": None,
+                    "speed": None, "dependencies": None,
+                    "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
+                    "note": "This asset cannot accomplish this mission.",
+                    "combined_total_effectiveness_percent": None, "qty_used": None,
+                    "ea_deliverables": f_ea_del, "comm_deliverables": f_comm_del, "sens_deliverables": f_sens_del,
+                    "bc3_jtn": f_bc3
+                })
+                failed_action_present = True
+            continue  # bypass normal logic for rescue
+
+        if "degrade" in actions:
+            if _has_any_content(f_ea_del):
+                rows.append({
+                    "friendly_id": fid,
+                    "weapon": None, "weapon_base_code": None, "qty": None,
+                    "effectiveness": None, "range": None, "alt_low": None, "alt_high": None,
+                    "speed": None, "dependencies": None,
+                    "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
+                    "note": "DEGRADE MISSION AUTHORIZED",
+                    "combined_total_effectiveness_percent": None, "qty_used": None,
+                    "ea_deliverables": f_ea_del, "comm_deliverables": f_comm_del, "sens_deliverables": f_sens_del,
+                    "bc3_jtn": f_bc3
+                })
+                authorized_action_present = True
+                matched_any_overall = True
+            else:
+                rows.append({
+                    "friendly_id": fid,
+                    "weapon": None, "weapon_base_code": None, "qty": None,
+                    "effectiveness": None, "range": None, "alt_low": None, "alt_high": None,
+                    "speed": None, "dependencies": None,
+                    "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
+                    "note": "This asset does not have the deliverables to accomplish this mission.",
+                    "combined_total_effectiveness_percent": None, "qty_used": None,
+                    "ea_deliverables": f_ea_del, "comm_deliverables": f_comm_del, "sens_deliverables": f_sens_del,
+                    "bc3_jtn": f_bc3
+                })
+                failed_action_present = True
+            continue  # bypass normal logic for degrade
+
+        if "investigate" in actions:
+            has_any = _has_any_content(f_sens_del) or _has_any_content(f_comm_del)
+            if has_any:
+                rows.append({
+                    "friendly_id": fid,
+                    "weapon": None, "weapon_base_code": None, "qty": None,
+                    "effectiveness": None, "range": None, "alt_low": None, "alt_high": None,
+                    "speed": None, "dependencies": None,
+                    "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
+                    "note": "INVESTIGATE MISSION AUTHORIZED",
+                    "combined_total_effectiveness_percent": None, "qty_used": None,
+                    "ea_deliverables": f_ea_del, "comm_deliverables": f_comm_del, "sens_deliverables": f_sens_del,
+                    "bc3_jtn": f_bc3
+                })
+                authorized_action_present = True
+                matched_any_overall = True
+            else:
+                rows.append({
+                    "friendly_id": fid,
+                    "weapon": None, "weapon_base_code": None, "qty": None,
+                    "effectiveness": None, "range": None, "alt_low": None, "alt_high": None,
+                    "speed": None, "dependencies": None,
+                    "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
+                    "note": "This asset does not have the deliverables to accomplish this mission.",
+                    "combined_total_effectiveness_percent": None, "qty_used": None,
+                    "ea_deliverables": f_ea_del, "comm_deliverables": f_comm_del, "sens_deliverables": f_sens_del,
+                    "bc3_jtn": f_bc3
+                })
+                failed_action_present = True
+            continue  # bypass normal logic for investigate
+        # ---------- end action overrides ----------
+
+        # If no explicit action or 'destroy' -> proceed with normal matching logic
         if not fside:
             rows.append({
                 "friendly_id": fid, "weapon": None, "weapon_base_code": None, "qty": None,
@@ -507,7 +627,8 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
                 "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
                 "note": "Could not determine friendly asset side/domain.",
                 "combined_total_effectiveness_percent": None, "qty_used": None,
-                "ea_deliverables": None, "comm_deliverables": None, "sens_deliverables": None
+                "ea_deliverables": None, "comm_deliverables": None, "sens_deliverables": None,
+                "bc3_jtn": f_bc3
             })
             continue
         classified_any_friendly = True
@@ -527,7 +648,8 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
                 "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
                 "note": "No parseable weapons provided.",
                 "combined_total_effectiveness_percent": None, "qty_used": None,
-                "ea_deliverables": None, "comm_deliverables": None, "sens_deliverables": None
+                "ea_deliverables": None, "comm_deliverables": None, "sens_deliverables": None,
+                "bc3_jtn": f_bc3
             })
             continue
 
@@ -562,9 +684,10 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
                 "note": None,
                 "combined_total_effectiveness_percent": None,
                 "qty_used": None,
-                "ea_deliverables": f_ed_del,
-                "comm_deliverables": comm_del,
-                "sens_deliverables": sens_del
+                "ea_deliverables": f_ea_del,
+                "comm_deliverables": f_comm_del,
+                "sens_deliverables": f_sens_del,
+                "bc3_jtn": f_bc3
             }
 
             if _val_present(row.get("effectiveness")) and isinstance(row.get("qty"), (int, float)):
@@ -587,39 +710,51 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
                 "total_effectiveness_percent": None, "qty_needed_for_90": None, "needs_more_note": None,
                 "note": "The asset has no armaments that meet the criteria of this engagement.",
                 "combined_total_effectiveness_percent": None, "qty_used": None,
-                "ea_deliverables": None, "comm_deliverables": None, "sens_deliverables": None
+                "ea_deliverables": None, "comm_deliverables": None, "sens_deliverables": None,
+                "bc3_jtn": f_bc3
             })
 
-    if not classified_any_friendly:
+    # If we never classified any friendly side at all -> code 1
+    if not classified_any_friendly and not authorized_action_present and not failed_action_present:
         df_arm_results = pd.DataFrame(rows, columns=[
             "friendly_id","weapon","weapon_base_code","qty",
             "effectiveness","range","alt_low","alt_high","speed","dependencies",
             "total_effectiveness_percent","qty_needed_for_90","needs_more_note","note",
-            "combined_total_effectiveness_percent","qty_used","ea_deliverables","comm_deliverables","sens_deliverables"
+            "combined_total_effectiveness_percent","qty_used",
+            "ea_deliverables","comm_deliverables","sens_deliverables","bc3_jtn"
         ])
-        payload = {
-            "app_code": 1,
-            "results": df_arm_results.where(pd.notnull(df_arm_results), None).to_dict("records")
-        }
+        payload = {"app_code": 1, "results": df_arm_results.where(pd.notnull(df_arm_results), None).to_dict("records")}
         return json.dumps(payload, indent=2)
 
+    # Build DF before any reductions
     df_arm_results = pd.DataFrame(rows, columns=[
         "friendly_id","weapon","weapon_base_code","qty",
         "effectiveness","range","alt_low","alt_high","speed","dependencies",
         "total_effectiveness_percent","qty_needed_for_90","needs_more_note","note",
-        "combined_total_effectiveness_percent","qty_used","ea_deliverables","comm_deliverables","sens_deliverables"
+        "combined_total_effectiveness_percent","qty_used",
+        "ea_deliverables","comm_deliverables","sens_deliverables","bc3_jtn"
     ])
 
-    if not matched_any_overall:
-        df_arm_results = _reduce_matches_by_friendly(df_arm_results)
-        payload = {
-            "app_code": 2,
-            "results": df_arm_results.where(pd.notnull(df_arm_results), None).to_dict("records")
-        }
+    # If any authorized action rows exist (rescue/degrade/investigate), short-circuit to app_code 4
+    if authorized_action_present:
+        payload = {"app_code": 4, "results": df_arm_results.where(pd.notnull(df_arm_results), None).to_dict("records")}
         return json.dumps(payload, indent=2)
 
+    # If any failed action rows exist (and no authorized action), short-circuit to app_code 2
+    if failed_action_present:
+        payload = {"app_code": 2, "results": df_arm_results.where(pd.notnull(df_arm_results), None).to_dict("records")}
+        return json.dumps(payload, indent=2)
+
+    # If absolutely no matches anywhere -> code 2
+    if not matched_any_overall:
+        df_arm_results = _reduce_matches_by_friendly(df_arm_results)
+        payload = {"app_code": 2, "results": df_arm_results.where(pd.notnull(df_arm_results), None).to_dict("records")}
+        return json.dumps(payload, indent=2)
+
+    # Reduce with your rules (may mark combined plan rows and fill combined_total_effectiveness_percent/qty_used)
     df_arm_results = _reduce_matches_by_friendly(df_arm_results)
 
+    # Determine final app_code: any outcome reaches ≥90% (single or combined)?
     reached_90_any = False
     if "total_effectiveness_percent" in df_arm_results.columns:
         reached_90_any = reached_90_any or pd.to_numeric(
@@ -632,29 +767,31 @@ def check_armaments(friendly_assets: Any, enemy_data: Any) -> str:
         ).ge(90.0).any()
 
     app_code = 4 if reached_90_any else 3
-    payload = {
-        "app_code": app_code,
-        "results": df_arm_results.where(pd.notnull(df_arm_results), None).to_dict("records")
-    }
+    payload = {"app_code": app_code, "results": df_arm_results.where(pd.notnull(df_arm_results), None).to_dict("records")}
     return json.dumps(payload, indent=2)
-
-
 
 
 # ----------------------------- Example -----------------------------
 if __name__ == "__main__":
-    enemy = { "id": 43826, "CallSign": None, "Track Cat": "Air", "Track ID": "Hostile", "Aircraft Type": None }
+    enemy = {
+        "id": 43826,
+        "CallSign": None,
+        "Track Cat": "Air",
+        "Track ID": "Hostile",
+        "Aircraft Type": None
+    }
+
     friendly_assets = [{
-        "callsign": "HARPY 02",
-        "weapon": "2XAIM-9, 3XAIM-120, 4XGBU-53 SD",
+        "callsign": "Lifeguard61",                 # rescue prefix OK
+        "weapon": "2XAIM-9, 4XAIM-120, 4XGBU-53 SD",
         "aircraft_type": "F-A-22",
         "trackcategory": "air",
         "comm_deliverables": "VHF, UHF, Comm Sat",
         "sensing_deliverables": "AMTI, IMINT 1, ELINT 1",
-        "ea_deliverables": "Responsive Noise, DRFM"
+        "ea_deliverables": "Responsive Noise, DRFM",
+        "bc3_jtn": "15486",                        # now carried through in all scenarios
+        "matched_actions": ["rescue"]              # try "degrade", "investigate", or "destroy"
     }]
 
     json_payload = check_armaments(friendly_assets, enemy)
-    #print(json_payload)  # already pretty-printed
-
-    
+    print(json_payload)
