@@ -224,6 +224,25 @@ def query_mef():
 
     return df_mef_data
 
+def query_all_mef(): 
+    df_mef_data = pd.DataFrame()
+    try:
+        # Connect to PostgreSQL
+        conn = psycopg2.connect(
+            host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
+        )
+        query = f"SELECT * FROM {mef_data} order by timestamp desc;"
+        df_mef_data = pd.read_sql(query, conn)
+
+    except Exception as e:
+        print("Error:", e)
+
+    finally:
+        if "conn" in locals():
+            conn.close()
+
+    return df_mef_data
+
 
 def query_red_air_act_a2a():
     df_red_air_act_a2a = pd.DataFrame()

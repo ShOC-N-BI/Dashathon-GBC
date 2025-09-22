@@ -8,7 +8,7 @@ def insert_input():
     user_input = database.query_user_input()
     bc3_all = database.query_bc3_with_all_vw()
     bc3_friends = database.query_bc3_friends_vw()
-    mef = database.query_mef()
+    mef = database.query_all_mef()
     print(user_input)
 
     def haversine(lat1, lon1, lat2, lon2):
