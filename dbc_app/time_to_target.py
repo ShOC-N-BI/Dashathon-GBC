@@ -12,7 +12,7 @@ def compute_time(friendly, target):
     """calculate time to target"""
 
     distance = float(friendly["distance_km"]) * 1000  # convert to meters
-    groundspeed_data = database.get_groundspeed(friendly["bc3_jtn"])
+    groundspeed_data = database.get_groundspeed(friendly["merged_tracknumber"])
 
     groundspeed = groundspeed_data["groundspeed"]
     if isinstance(groundspeed, pd.Series):

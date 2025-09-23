@@ -41,7 +41,7 @@ def insert_input():
     for row in mef.itertuples(index=False):
         target_mef = parse_track_info(row.entity)
         if target_mef is None or "ID" not in target_mef:
-            print(f"Skipping invalid MEF row: {row.entity}")
+            # print(f"Skipping invalid MEF row: {row.entity}")
             continue
         asset_mef = row.actions
         if not asset_mef or "merged_tracknumber" not in asset_mef[0]:
@@ -53,7 +53,7 @@ def insert_input():
 
     # Track duplicates in the current batch
     
-    print(existing_pairs)
+    # print(existing_pairs)
     # Process user_input
     for a in user_input.itertuples(index=False):
         pair_key = (str(a.asset_tn).strip(), str(a.target_tn).strip())
@@ -74,32 +74,58 @@ def insert_input():
         # Proceed with insertion
         asset = next((row for row in bc3_friends.itertuples(index=False) if a.asset_tn == row.merged_tracknumber), None)
         entity_row = next((row for row in bc3_all.itertuples(index=False) if a.target_tn == row.tracknumber), None)
+        flag = False
 
-        if asset is None or entity_row is None:
-            print(f"Non-existent match for Asset {a.asset_tn} or Target {a.target_tn}")
+        if asset is None:
+            asset = next((row for row in bc3_all.itertuples(index=False) if a.asset_tn == row.tracknumber), None)
+            if asset is None:
+                print(f"Non-existent match for Asset {a.asset_tn}")
+                continue
+            else:
+                print("FOUND in all instead")
+                flag = True
+            
+        if entity_row is None:
+            print(f"Non-existent match for Target {a.target_tn}")
             continue
-
         print(pair_key)
 
         # Compute distance
         distance = haversine(asset.latitude, asset.longitude, entity_row.latitude, entity_row.longitude)
 
         # Build action dictionary
-        action = [{
-            "lat": asset.latitude,
-            "lon": asset.longitude,
-            "weapon": asset.munition_deliverables,
-            "bc3_jtn": asset.bc3_jtn,
-            "callsign": asset.callsign,
-            "distance_km": distance,
-            "aircraft_type": asset.aircraft_type,
-            "trackcategory": asset.trackcategory.lower(),
-            "ea_deliverables": asset.ea_deliverables,
-            "matched_actions": [a.battle_effect.lower()],
-            "comm_deliverables": asset.comm_deliverables,
-            "merged_tracknumber": asset.merged_tracknumber,
-            "sensing_deliverables": asset.sensing_deliverables,
-        }]
+        if flag:
+            action = [{
+                "lat": asset.latitude,
+                "lon": asset.longitude,
+                "weapon": asset.weapon,
+                "bc3_jtn": asset.bc3_jtn,
+                "callsign": asset.callsign,
+                "distance_km": distance,
+                "aircraft_type": asset.aircraft_type,
+                "trackcategory": asset.trackcategory.lower(),
+                "ea_deliverables": None,
+                "matched_actions": [a.battle_effect.lower()],
+                "comm_deliverables": None,
+                "merged_tracknumber": asset.tracknumber,
+                "sensing_deliverables": None,
+            }]
+        else:
+            action = [{
+                "lat": asset.latitude,
+                "lon": asset.longitude,
+                "weapon": asset.munition_deliverables,
+                "bc3_jtn": asset.bc3_jtn,
+                "callsign": asset.callsign,
+                "distance_km": distance,
+                "aircraft_type": asset.aircraft_type,
+                "trackcategory": asset.trackcategory.lower(),
+                "ea_deliverables": asset.ea_deliverables,
+                "matched_actions": [a.battle_effect.lower()],
+                "comm_deliverables": asset.comm_deliverables,
+                "merged_tracknumber": asset.merged_tracknumber,
+                "sensing_deliverables": asset.sensing_deliverables,
+            }]
 
         # Build entity description
         entity = (
@@ -113,7 +139,12 @@ def insert_input():
         # Insert into database
         try:
             database.insert_data(entity, json.dumps(action), "text", timestamp)
-            
-            print(f"Inserted: Asset {asset.merged_tracknumber}, Target {a.target_tn}")
+            if flag:
+                print(f"Inserted: Asset {asset.tracknumber}, Target {a.target_tn}")
+            else:
+                print(f"Inserted: Asset {asset.merged_tracknumber}, Target {a.target_tn}")
         except Exception as e:
-            print(f"Error inserting data for Asset {asset.merged_tracknumber}, Target {a.target_tn}: {e}")
+            if flag:
+                print(f"Error inserting data for Asset {asset.tracknumber}, Target {a.target_tn}: {e}")
+            else:
+                print(f"Error inserting data for Asset {asset.merged_tracknumber}, Target {a.target_tn}: {e}")

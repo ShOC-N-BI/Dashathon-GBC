@@ -95,6 +95,7 @@ def find_escort(friendly, hostile, target):
                 "lat": escort["latitude"],
                 "lon": escort["longitude"],
                 "aircraft_type": escort["aircraft_type"],
+                "tracknumber": escort["tracknumber"],
                 "distance_km": haversine(
                     escort["latitude"],
                     escort["longitude"],

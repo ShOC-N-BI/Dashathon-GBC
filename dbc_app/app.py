@@ -45,8 +45,8 @@ def evaluate_aircraft(friendly, target, message, timestamp):
     """
     results = {}
 
-    print(target)
-    #print(friendly)
+    # print(target)
+    # print(friendly)
 
     # 1. Weapon Viability
     # values - 4 valid weapon pair, 3 asset weapon not 90% effective, 2 asset weapon no options, 1 missing asset or target domain
@@ -93,8 +93,10 @@ def main():
     """
     # Step 1: Get Data
     global temp 
+    #print(f"old: {temp}")
     user_input.insert_input()
     current_MEF = database.query_mef()  
+    #print(f"new: {current_MEF}")
     if temp is not None:
         print(f"temp {type(temp)} MEF {type(current_MEF)}")
         if temp.equals(current_MEF):
@@ -114,7 +116,7 @@ def main():
     target_message = current_MEF["message"].iloc[0]
     target_time = current_MEF["timestamp"].iloc[0]
 
-    print(f"tar air: {target_aircraft}")
+    #print(f"tar air: {target_aircraft}")
     # extract tracknumber
     match = re.match(r'\s*(\d{5})', target_aircraft)
     if match:
@@ -122,16 +124,19 @@ def main():
     else:
         target_aircraft_id = None
 
-    print(f"tar air id: {target_aircraft_id}")
-    print(f"tar air: {target_aircraft}")
+    #print(f"tar air id: {target_aircraft_id}")
+    #print(f"tar air: {target_aircraft}")
     # Step 2: Run evaluations
     all_results = {}
     coa = []
     for idx, friendly in enumerate(friendly_aircraft_list, start=1):
         #print(f"\n=== Evaluating Friendly Aircraft {idx} ===")
+        #try:
         evaluation = evaluate_aircraft(friendly, target_aircraft, target_message, target_time)
         all_results[f"Aircraft_{idx}"] = evaluation
         coa.append(evaluation)
+        #except:
+        #    print("Possibly non-exist target or asset")
 
     print(coa)
     # Insert into DB
@@ -151,7 +156,8 @@ def main():
 
 if __name__ == "__main__":
     while(True):
-        print("*")
+        print("***********START******************")
         main()
+        # break
         time.sleep(1)
-        print("**")
+        print("***********END*********************")

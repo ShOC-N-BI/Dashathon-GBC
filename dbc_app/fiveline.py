@@ -2,6 +2,10 @@
 
 import re
 from collections import Counter
+import random
+
+cyber_ids = ["Cereal", "Condor", "Light", "Wolf"]
+space_ids = ["Photon", "Astro", "Pluto", "Vader", "JarJar", "Roo"]
 
 def extract_target_name(line: str) -> str | None:
     """extract target callsign or tracknumber if no callsign available"""
@@ -47,7 +51,7 @@ def line_one(friendly, target):
     # Use callsign if available, otherwise fallback to tracknumber
     friendly_callsign = friendly.get("callsign") or str(friendly.get("merged_tracknumber", "UNKNOWN"))
 
-    action = friendly["matched_actions"]
+    action = friendly["matched_actions"][0]
     target_callsign = extract_target_name(target)
 
     return f"{friendly_callsign} {action} {target_callsign}"
@@ -59,13 +63,13 @@ def line_two(support):
     for role, details in support.items():
         if isinstance(details, dict):
             callsign = details.get("callsign")
-            bc3_jtn = details.get("bc3_jtn")
+            tracknumber = details.get("tracknumber")
 
             #looks for callsign, if no callsign then None
             if callsign and str(callsign).strip() != "None":
                 support_list.append(callsign.strip())
-            elif bc3_jtn and str(bc3_jtn).strip() != "None":
-                support_list.append(str(bc3_jtn).strip())
+            elif tracknumber and str(tracknumber).strip() != "None":
+                support_list.append(str(tracknumber).strip())
 
     supporting_assets = f"{", ".join(support_list)}"
 
@@ -84,15 +88,64 @@ def line_four(hostiles):
     parts = []
     for h_type, num in counts.items():
         word = "target" if num == 1 else "targets"
-        parts.append(f"{num} enemy {h_type} {word}")
+        parts.append(f"{num} confirmed hostile(s) {h_type} {word}")
 
     if not parts:
-        return "No enemy targets detected."
+        return "No hostile targets detected en route."
 
     return " and ".join(parts) + " possibly enroute."
 
 def line_five(support):
-    return "Cyber Cereal and Space Photon"
+    rand_cyber = random.choice(cyber_ids)
+    rand_space = random.choice(space_ids)
+    line = "CYBER: " + rand_cyber + ", SPACE: " + rand_space 
+
+    escort_list = support["escort"]
+    tanker_list = support["tankers"]
+    awacs_list = support["awacs"]
+    ew_list = support["ew"]
+    sead_list = support["sead"]
+
+    print(f"AWACS -- {awacs_list}")
+
+    # Extract callsign if available, else fallback to bc3_jtn
+    
+    if isinstance(escort_list, list):
+        escort_names = [
+            str(e["callsign"]) if e["callsign"] is not None else str(e["tracknumber"])
+            for e in escort_list
+        ]
+        print("Escort names found")
+        # Convert to single string
+        escort_string = ", ".join(escort_names)
+        line = line + ", ESCORT: " + escort_string
+        #print(f"ESCORTS: {escort_string}")
+    
+        # print("----escort not list----")
+
+    try:
+        awacs_string = awacs_list["callsign"] or awacs_list["tracknumber"]
+        print(awacs_string)
+        print(type(awacs_string))
+        line = line + ", AWACS: " + str(awacs_string)
+    except: 
+        print("no awacs")
+
+    try: 
+        sead_string = sead_list["callsign"] or sead_list["tracknumber"]
+        line = line + ", SEAD: " + str(sead_string)
+    except:
+        print("No sead")
+
+    try:
+        ew_string = ew_list["callsign"] or ew_list["tracknumber"]
+        line = line + ", EW: " + str(ew_string)
+    except: 
+        print("no ew")
+
+    
+
+    return line
 
 
 
@@ -102,15 +155,16 @@ def generate(armament, hostiles, fuel, time, support, sequence, message, friendl
     line_uno = line_one(friendly, target) # line 1 = message
     line_dos = line_two(support) # line 2 = support
     line_tres = line_three(sequence) # line 3 = sequence
+    # print(f"**********************{sequence}")
     line_cuatro = line_four(hostiles) # line 4 = hostiles
     line_cinco = line_five(support) # line 5 = expanded support
     
     coa = {
-        "FirstLine": f"LINE 1: {line_uno}",
-        "SecondLine": f"LINE 2: {line_dos}",
-        "ThirdLine": f"LINE 3: {line_tres}",
-        "FourthLine": f"LINE 4: {line_cuatro}",
-        "FifthLine": f"LINE 5: {line_cinco}"
+        "FirstLine": f"{line_uno}",
+        "SecondLine": f"{line_dos}",
+        "ThirdLine": f"{line_tres}",
+        "FourthLine": f"{line_cuatro}",
+        "FifthLine": f"{line_cinco}"
     }
 
     return coa
