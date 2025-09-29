@@ -134,6 +134,7 @@ _QUERY_MAP = {
     ("surface", "air"):    database.query_red_air_del_s2a,       # surface→air
     ("land", "surface"):   database.query_red_maritime_del_s2s,  # per your rule
     ("ground", "surface"): database.query_red_maritime_del_s2s,  # alias
+    ("surface", "surface"): database.query_red_maritime_del_s2s,
 }
 
 def fetch_deliverables_df(friendly_side: str, enemy_side: str) -> pd.DataFrame:
